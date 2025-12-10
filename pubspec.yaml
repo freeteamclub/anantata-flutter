@@ -1,0 +1,38 @@
+name: anantata
+description: "Anantata Career Coach - AI-powered career development"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  intl: ^0.19.0
+  flutter_svg: ^2.0.10+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
+    - assets/images/
+    - assets/font/
+
+  fonts:
+    - family: NunitoSans
+      fonts:
+        - asset: assets/font/nunitosansregular.ttf
+        - asset: assets/font/nunitosansbold.ttf
+          weight: 700
+        - asset: assets/font/nunitosanssemibold.ttf
+          weight: 600
+        - asset: assets/font/nunitosansblack.ttf
+          weight: 900
