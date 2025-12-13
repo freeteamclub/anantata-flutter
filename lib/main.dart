@@ -1,92 +1,117 @@
 import 'package:flutter/material.dart';
-import 'package:anantata/xelauikit/xela_color.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:anantata/config/app_theme.dart';
+import 'package:anantata/config/app_constants.dart';
+import 'package:anantata/screens/splash/splash_screen.dart';
+import 'package:anantata/screens/home/home_screen.dart';
 
-void main() {
-  runApp(const MyApp());
+/// Anantata Career Coach
+/// Версія: 1.1.0
+/// Дата: 13.12.2025
+///
+/// AI-powered career development application
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Завантаження змінних середовища
+  await dotenv.load(fileName: ".env");
+
+  runApp(const AnantataApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AnantataApp extends StatelessWidget {
+  const AnantataApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Anantata',
+      // Основні налаштування
+      title: AppConstants.appFullName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: XelaColor.Ananta,
-          primary: XelaColor.Ananta,
-          onPrimary: XelaColor.AnantaWhite,
-        ),
-        fontFamily: 'NunitoSans',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: XelaColor.Ananta,
-          foregroundColor: XelaColor.AnantaWhite,
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: XelaColor.Ananta,
-          foregroundColor: XelaColor.AnantaWhite,
-        ),
-      ),
-      home: const MyHomePage(title: 'Anantata Career Coach'),
+
+      // Тема
+      theme: AppTheme.lightTheme,
+
+      // Початковий маршрут
+      initialRoute: AppConstants.routeSplash,
+
+      // Маршрути
+      routes: _buildRoutes(),
+
+      // Обробка невідомих маршрутів
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => const _NotFoundScreen(),
+        );
+      },
     );
   }
-}
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  Map<String, WidgetBuilder> _buildRoutes() {
+    return {
+      AppConstants.routeSplash: (context) => const SplashScreen(),
+      AppConstants.routeHome: (context) => const HomeScreen(),
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+      // TODO: Додати інші екрани
+      // AppConstants.routeOnboarding: (context) => const OnboardingScreen(),
+      // AppConstants.routeLogin: (context) => const LoginScreen(),
+      // AppConstants.routeRegister: (context) => const RegisterScreen(),
+      // AppConstants.routeAssessment: (context) => const AssessmentScreen(),
+      // AppConstants.routeResults: (context) => const ResultsScreen(),
+      // AppConstants.routeChat: (context) => const ChatScreen(),
+      // AppConstants.routeProfile: (context) => const ProfileScreen(),
+      // AppConstants.routeSettings: (context) => const SettingsScreen(),
+    };
   }
+}
+
+/// Екран для невідомих маршрутів
+class _NotFoundScreen extends StatelessWidget {
+  const _NotFoundScreen();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: const Text('Сторінку не знайдено'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Welcome to Anantata!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: XelaColor.Ananta,
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '404',
+              style: AppTheme.headingLarge.copyWith(
+                color: AppTheme.textSecondary,
               ),
             ),
-            const SizedBox(height: 20),
-            const Text('You have pushed the button this many times:'),
+            const SizedBox(height: 8),
             Text(
-              '$_counter',
-              style: TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: XelaColor.Ananta,
+              'Сторінку не знайдено',
+              style: AppTheme.bodyLarge.copyWith(
+                color: AppTheme.textSecondary,
               ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppConstants.routeHome,
+                      (route) => false,
+                );
+              },
+              child: const Text('На головну'),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
