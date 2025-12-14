@@ -4,8 +4,8 @@ import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/storage_service.dart';
 
 /// Екран плану з 10 напрямками та 100 кроками
-/// Версія: 4.0.0 - Зелена шкала, перемикач блоків
-/// Дата: 13.12.2025
+/// Версія: 4.1.0 - Виправлено колір опису кроків
+/// Дата: 14.12.2025
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
@@ -500,7 +500,7 @@ class _PlanScreenState extends State<PlanScreen> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                // Заголовок - ЧОРНИЙ, БІЛЬШИЙ
+                // Заголовок - ЧОРНИЙ
                 Text(
                   step.title,
                   style: TextStyle(
@@ -516,14 +516,14 @@ class _PlanScreenState extends State<PlanScreen> {
                 ),
                 if (step.description.isNotEmpty) ...[
                   const SizedBox(height: 5),
-                  // Опис - ТЕМНО-СІРИЙ, БІЛЬШИЙ
+                  // ✅ ВИПРАВЛЕНО: Опис тепер ЧОРНИЙ (було grey[700])
                   Text(
                     step.description,
                     style: TextStyle(
                       fontSize: 14,
                       color: isDone || isSkipped
-                          ? Colors.grey[400]
-                          : Colors.grey[700],
+                          ? Colors.grey[500]  // Виконані/пропущені - трохи темніше
+                          : Colors.black87,   // ✅ Активні - ЧОРНИЙ (було grey[700])
                       height: 1.4,
                     ),
                     maxLines: 3,

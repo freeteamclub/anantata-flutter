@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:anantata/models/career_plan_model.dart';
+import 'package:anantata/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Сервіс для локального збереження даних
-/// Версія: 2.0.0 - Повна підтримка CareerPlanModel
-/// Дата: 13.12.2025
+/// Версія: 3.0.0 - Інтеграція з Supabase
+/// Дата: 14.12.2025
 
 class StorageService {
   static const String _keyUserName = 'user_name';
@@ -16,6 +18,7 @@ class StorageService {
   static const String _keyGapAnalysis = 'gap_analysis';
 
   final Uuid _uuid = const Uuid();
+  final SupabaseService _supabase = SupabaseService();
 
   // ═══════════════════════════════════════════════════════════════
   // USER DATA
@@ -49,6 +52,11 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final jsonMap = answers.map((key, value) => MapEntry(key.toString(), value));
     await prefs.setString(_keyAssessmentAnswers, jsonEncode(jsonMap));
+
+    // Синхронізуємо з Supabase
+    if (_supabase.isAuthenticated) {
+      await _supabase.saveAssessmentAnswers(answers);
+    }
   }
 
   Future<Map<int, String>?> getAssessmentAnswers() async {
@@ -60,7 +68,7 @@ class StorageService {
       final Map<String, dynamic> jsonMap = jsonDecode(jsonStr);
       return jsonMap.map((key, value) => MapEntry(int.parse(key), value as String));
     } catch (e) {
-      print('❌ Помилка читання відповідей: $e');
+      debugPrint('❌ Помилка читання відповідей: $e');
       return null;
     }
   }
@@ -81,7 +89,7 @@ class StorageService {
     final goalId = _uuid.v4();
     final goal = GoalModel(
       id: goalId,
-      userId: 'local_user',
+      userId: _supabase.userId ?? 'local_user',
       title: generated.goal.title,
       targetSalary: generated.goal.targetSalary,
       isPrimary: true,
@@ -141,7 +149,23 @@ class StorageService {
     // Зберігаємо в SharedPreferences
     await prefs.setString(_keyCareerPlan, jsonEncode(plan.toJson()));
 
-    print('✅ План збережено: ${directions.length} напрямків, ${steps.length} кроків');
+    debugPrint('✅ План збережено локально: ${directions.length} напрямків, ${steps.length} кроків');
+
+    // ═══════════════════════════════════════════════════════════════
+    // СИНХРОНІЗАЦІЯ З SUPABASE
+    // ═══════════════════════════════════════════════════════════════
+    if (_supabase.isAuthenticated) {
+      debugPrint('☁️ Синхронізація плану з Supabase...');
+      try {
+        final success = await _supabase.saveFullPlan(plan);
+        if (success) {
+          debugPrint('✅ План синхронізовано з Supabase');
+        }
+      } catch (e) {
+        debugPrint('❌ Помилка синхронізації: $e');
+      }
+    }
+
     return plan;
   }
 
@@ -155,19 +179,28 @@ class StorageService {
     final jsonStr = prefs.getString(_keyCareerPlan);
 
     if (jsonStr == null) {
-      print('📭 План не знайдено');
+      debugPrint('📭 План не знайдено локально');
       return null;
     }
 
     try {
       final json = jsonDecode(jsonStr) as Map<String, dynamic>;
       final plan = CareerPlanModel.fromJson(json);
-      print('✅ План завантажено: ${plan.directions.length} напрямків, ${plan.steps.length} кроків');
+      debugPrint('✅ План завантажено: ${plan.directions.length} напрямків, ${plan.steps.length} кроків');
       return plan;
     } catch (e) {
-      print('❌ Помилка читання плану: $e');
+      debugPrint('❌ Помилка читання плану: $e');
       return null;
     }
+  }
+
+  /// Зберегти план з хмари локально
+  Future<void> savePlanFromCloud(CareerPlanModel plan) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCareerPlan, jsonEncode(plan.toJson()));
+    await prefs.setInt(_keyMatchScore, plan.matchScore);
+    await prefs.setString(_keyGapAnalysis, plan.gapAnalysis);
+    debugPrint('✅ Хмарний план збережено локально');
   }
 
   /// Отримати match score
@@ -225,11 +258,23 @@ class StorageService {
 
     final finalPlan = updatedPlan.copyWith(directions: updatedDirections);
 
-    // Зберігаємо
+    // Зберігаємо локально
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCareerPlan, jsonEncode(finalPlan.toJson()));
 
-    print('✅ Крок $stepId оновлено: ${status.name}');
+    debugPrint('✅ Крок $stepId оновлено: ${status.name}');
+
+    // ═══════════════════════════════════════════════════════════════
+    // СИНХРОНІЗАЦІЯ СТАТУСУ З SUPABASE
+    // ═══════════════════════════════════════════════════════════════
+    if (_supabase.isAuthenticated) {
+      try {
+        await _supabase.updateStepStatus(stepId, status.value);
+        debugPrint('☁️ Статус синхронізовано з Supabase');
+      } catch (e) {
+        debugPrint('⚠️ Помилка синхронізації статусу: $e');
+      }
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -240,7 +285,7 @@ class StorageService {
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    print('🗑️ Всі дані очищено');
+    debugPrint('🗑️ Всі дані очищено');
   }
 
   /// Очистити тільки план
@@ -250,7 +295,7 @@ class StorageService {
     await prefs.remove(_keyMatchScore);
     await prefs.remove(_keyGapAnalysis);
     await prefs.remove(_keyAssessmentComplete);
-    print('🗑️ План очищено');
+    debugPrint('🗑️ План очищено');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -258,25 +303,25 @@ class StorageService {
   // ═══════════════════════════════════════════════════════════════
 
   /// Вивести інформацію про збережені дані
-  Future<void> debugPrint() async {
+  Future<void> debugPrintPlan() async {
     final plan = await getCareerPlan();
     if (plan == null) {
-      print('📭 DEBUG: План не знайдено');
+      debugPrint('📭 DEBUG: План не знайдено');
       return;
     }
 
-    print('═══════════════════════════════════════');
-    print('📋 DEBUG: Збережений план');
-    print('═══════════════════════════════════════');
-    print('🎯 Ціль: ${plan.goal.title}');
-    print('💰 Зарплата: ${plan.goal.targetSalary}');
-    print('📊 Match Score: ${plan.matchScore}%');
-    print('📈 Прогрес: ${plan.overallProgress.toStringAsFixed(1)}%');
-    print('📂 Напрямків: ${plan.directions.length}');
-    print('📝 Кроків: ${plan.steps.length}');
-    print('✅ Виконано: ${plan.completedStepsCount}');
-    print('⏭️ Пропущено: ${plan.skippedStepsCount}');
-    print('⏳ Очікує: ${plan.pendingStepsCount}');
-    print('═══════════════════════════════════════');
+    debugPrint('═══════════════════════════════════════');
+    debugPrint('📋 DEBUG: Збережений план');
+    debugPrint('═══════════════════════════════════════');
+    debugPrint('🎯 Ціль: ${plan.goal.title}');
+    debugPrint('💰 Зарплата: ${plan.goal.targetSalary}');
+    debugPrint('📊 Match Score: ${plan.matchScore}%');
+    debugPrint('📈 Прогрес: ${plan.overallProgress.toStringAsFixed(1)}%');
+    debugPrint('📂 Напрямків: ${plan.directions.length}');
+    debugPrint('📝 Кроків: ${plan.steps.length}');
+    debugPrint('✅ Виконано: ${plan.completedStepsCount}');
+    debugPrint('⏭️ Пропущено: ${plan.skippedStepsCount}');
+    debugPrint('⏳ Очікує: ${plan.pendingStepsCount}');
+    debugPrint('═══════════════════════════════════════');
   }
 }

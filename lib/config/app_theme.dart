@@ -1,266 +1,350 @@
 import 'package:flutter/material.dart';
-import 'package:anantata/xelauikit/xela_color.dart';
 
 /// Тема додатку Anantata
-/// Версія: 1.0
-/// Дата: 12.12.2025
+/// Версія: 2.1.0 - Виправлено lightTheme, CardThemeData
+/// Дата: 14.12.2025
+///
+/// Шрифти:
+/// - Bitter: Заголовки (H1, H2, H3, AppBar)
+/// - Akrobat: Акценти, кнопки, бейджі, бренд
+/// - NunitoSans: Основний текст, описи
 
 class AppTheme {
-  AppTheme._();
+  // ═══════════════════════════════════════════════════════════════
+  // КОЛЬОРИ
+  // ═══════════════════════════════════════════════════════════════
 
-  // ============================================
-  // КОЛЬОРИ БРЕНДУ
-  // ============================================
+  /// Основний фіолетовий колір бренду
+  static const Color primaryColor = Color(0xFF413659);
 
-  static const Color primaryColor = XelaColor.Ananta;        // #413659
-  static const Color primaryLight = XelaColor.Ananta6;       // #7f6b9e
-  static const Color primaryDark = XelaColor.Ananta1;        // #1e1829
-  static const Color backgroundColor = XelaColor.Ananta12;   // #f8f6fb
-  static const Color surfaceColor = Colors.white;
-  static const Color errorColor = XelaColor.Red;
-  static const Color successColor = XelaColor.Green;
-  static const Color warningColor = XelaColor.Orange;
+  /// Білий колір
+  static const Color whiteColor = Color(0xFFFFFFFF);
 
-  // ============================================
-  // ТЕКСТОВІ КОЛЬОРИ
-  // ============================================
+  /// Фон сторінок
+  static const Color backgroundColor = Color(0xFFF5F5F5);
 
-  static const Color textPrimary = XelaColor.Gray1;          // Основний текст
-  static const Color textSecondary = XelaColor.Gray5;        // Вторинний текст
-  static const Color textHint = XelaColor.Gray7;             // Підказки
-  static const Color textOnPrimary = Colors.white;           // Текст на primary
+  /// Основний текст
+  static const Color textPrimary = Color(0xFF1A1A1A);
 
-  // ============================================
-  // РОЗМІРИ ШРИФТІВ
-  // ============================================
+  /// Вторинний текст
+  static const Color textSecondary = Color(0xFF666666);
 
-  static const double fontSizeXS = 12.0;
-  static const double fontSizeS = 14.0;
-  static const double fontSizeM = 16.0;
-  static const double fontSizeL = 18.0;
-  static const double fontSizeXL = 24.0;
-  static const double fontSizeXXL = 32.0;
-  static const double fontSizeHero = 48.0;
+  /// Зелений для прогресу
+  static const Color successColor = Color(0xFF4CAF50);
 
-  // ============================================
-  // ВІДСТУПИ
-  // ============================================
+  /// Помаранчевий для пропущених
+  static const Color warningColor = Color(0xFFFF9800);
 
-  static const double paddingXS = 4.0;
-  static const double paddingS = 8.0;
-  static const double paddingM = 16.0;
-  static const double paddingL = 24.0;
-  static const double paddingXL = 32.0;
-  static const double paddingXXL = 48.0;
+  /// Червоний для помилок
+  static const Color errorColor = Color(0xFFF44336);
 
-  // ============================================
-  // РАДІУСИ ЗАОКРУГЛЕНЬ
-  // ============================================
+  // ═══════════════════════════════════════════════════════════════
+  // ШРИФТИ
+  // ═══════════════════════════════════════════════════════════════
 
-  static const double radiusS = 8.0;
-  static const double radiusM = 12.0;
-  static const double radiusL = 16.0;
-  static const double radiusXL = 24.0;
-  static const double radiusRound = 100.0;
+  /// Шрифт для заголовків
+  static const String fontHeading = 'Bitter';
 
-  // ============================================
-  // ТІНІ
-  // ============================================
+  /// Шрифт для акцентів (кнопки, бейджі)
+  static const String fontAccent = 'Akrobat';
 
-  static List<BoxShadow> get shadowSmall => [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.05),
-      blurRadius: 4,
-      offset: const Offset(0, 2),
-    ),
-  ];
+  /// Шрифт для основного тексту
+  static const String fontBody = 'NunitoSans';
 
-  static List<BoxShadow> get shadowMedium => [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.1),
-      blurRadius: 8,
-      offset: const Offset(0, 4),
-    ),
-  ];
-
-  static List<BoxShadow> get shadowLarge => [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.15),
-      blurRadius: 16,
-      offset: const Offset(0, 8),
-    ),
-  ];
-
-  // ============================================
+  // ═══════════════════════════════════════════════════════════════
   // ТЕКСТОВІ СТИЛІ
-  // ============================================
+  // ═══════════════════════════════════════════════════════════════
 
+  /// Великий заголовок (H1)
   static const TextStyle headingLarge = TextStyle(
-    fontSize: fontSizeXXL,
-    fontWeight: FontWeight.bold,
+    fontFamily: fontHeading,
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
     color: textPrimary,
-    fontFamily: 'NunitoSans',
+    height: 1.2,
   );
 
+  /// Середній заголовок (H2)
   static const TextStyle headingMedium = TextStyle(
-    fontSize: fontSizeXL,
-    fontWeight: FontWeight.bold,
+    fontFamily: fontHeading,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
     color: textPrimary,
-    fontFamily: 'NunitoSans',
+    height: 1.3,
   );
 
+  /// Малий заголовок (H3)
   static const TextStyle headingSmall = TextStyle(
-    fontSize: fontSizeL,
+    fontFamily: fontHeading,
+    fontSize: 18,
     fontWeight: FontWeight.w600,
     color: textPrimary,
-    fontFamily: 'NunitoSans',
+    height: 1.3,
   );
 
+  /// Заголовок картки
+  static const TextStyle cardTitle = TextStyle(
+    fontFamily: fontHeading,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: textPrimary,
+  );
+
+  /// Акцентний текст (кнопки, бейджі)
+  static const TextStyle accentText = TextStyle(
+    fontFamily: fontAccent,
+    fontSize: 16,
+    fontWeight: FontWeight.w900,
+    color: whiteColor,
+    letterSpacing: 0.5,
+  );
+
+  /// Акцентний текст великий
+  static const TextStyle accentLarge = TextStyle(
+    fontFamily: fontAccent,
+    fontSize: 20,
+    fontWeight: FontWeight.w900,
+    color: whiteColor,
+    letterSpacing: 0.5,
+  );
+
+  /// Основний текст
   static const TextStyle bodyLarge = TextStyle(
-    fontSize: fontSizeM,
+    fontFamily: fontBody,
+    fontSize: 16,
     fontWeight: FontWeight.normal,
     color: textPrimary,
-    fontFamily: 'NunitoSans',
+    height: 1.5,
   );
 
+  /// Основний текст середній
   static const TextStyle bodyMedium = TextStyle(
-    fontSize: fontSizeS,
+    fontFamily: fontBody,
+    fontSize: 14,
     fontWeight: FontWeight.normal,
     color: textPrimary,
-    fontFamily: 'NunitoSans',
+    height: 1.4,
   );
 
+  /// Малий текст
   static const TextStyle bodySmall = TextStyle(
-    fontSize: fontSizeXS,
+    fontFamily: fontBody,
+    fontSize: 12,
     fontWeight: FontWeight.normal,
     color: textSecondary,
-    fontFamily: 'NunitoSans',
+    height: 1.4,
   );
 
+  /// Підпис / Caption
+  static const TextStyle caption = TextStyle(
+    fontFamily: fontBody,
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    color: textSecondary,
+    letterSpacing: 0.3,
+  );
+
+  /// Текст кнопки
   static const TextStyle buttonText = TextStyle(
-    fontSize: fontSizeM,
-    fontWeight: FontWeight.w600,
-    color: textOnPrimary,
-    fontFamily: 'NunitoSans',
+    fontFamily: fontAccent,
+    fontSize: 16,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 0.5,
   );
 
-  // ============================================
-  // ГОЛОВНА ТЕМА ДОДАТКУ
-  // ============================================
+  /// Текст малої кнопки
+  static const TextStyle buttonSmall = TextStyle(
+    fontFamily: fontAccent,
+    fontSize: 14,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 0.3,
+  );
 
-  static ThemeData get lightTheme => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'NunitoSans',
+  // ═══════════════════════════════════════════════════════════════
+  // ТЕМА ДОДАТКУ
+  // ═══════════════════════════════════════════════════════════════
 
-    // Кольорова схема
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: primaryColor,
-      primary: primaryColor,
-      onPrimary: textOnPrimary,
-      surface: surfaceColor,
-      error: errorColor,
-    ),
+  /// Світла тема (основна)
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      primaryColor: primaryColor,
+      scaffoldBackgroundColor: backgroundColor,
+      fontFamily: fontBody,
 
-    // Scaffold
-    scaffoldBackgroundColor: backgroundColor,
-
-    // AppBar
-    appBarTheme: const AppBarTheme(
-      backgroundColor: primaryColor,
-      foregroundColor: textOnPrimary,
-      elevation: 0,
-      centerTitle: true,
-      titleTextStyle: TextStyle(
-        fontSize: fontSizeL,
-        fontWeight: FontWeight.w600,
-        fontFamily: 'NunitoSans',
+      // ColorScheme
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryColor,
+        primary: primaryColor,
+        surface: whiteColor,
       ),
-    ),
 
-    // Кнопки
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
+      // AppBar
+      appBarTheme: const AppBarTheme(
         backgroundColor: primaryColor,
-        foregroundColor: textOnPrimary,
-        padding: const EdgeInsets.symmetric(
-          horizontal: paddingL,
-          vertical: paddingM,
+        foregroundColor: whiteColor,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontFamily: fontHeading,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: whiteColor,
         ),
+      ),
+
+      // Кнопки
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: whiteColor,
+          textStyle: buttonText,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryColor,
+          textStyle: buttonText,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          side: const BorderSide(color: primaryColor, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          textStyle: const TextStyle(
+            fontFamily: fontBody,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+
+      // Картки
+      cardTheme: CardThemeData(
+        color: whiteColor,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusM),
+          borderRadius: BorderRadius.circular(16),
         ),
-        textStyle: buttonText,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
-    ),
 
-    // Outlined кнопки
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: primaryColor,
-        side: const BorderSide(color: primaryColor),
-        padding: const EdgeInsets.symmetric(
-          horizontal: paddingL,
-          vertical: paddingM,
+      // Input
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: whiteColor,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        labelStyle: const TextStyle(
+          fontFamily: fontBody,
+          color: textSecondary,
+        ),
+        hintStyle: TextStyle(
+          fontFamily: fontBody,
+          color: Colors.grey[400],
+        ),
+      ),
+
+      // Bottom Navigation
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: whiteColor,
+        selectedItemColor: primaryColor,
+        unselectedItemColor: textSecondary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+        selectedLabelStyle: TextStyle(
+          fontFamily: fontBody,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontFamily: fontBody,
+          fontSize: 12,
+        ),
+      ),
+
+      // Floating Action Button
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: primaryColor,
+        foregroundColor: whiteColor,
+        elevation: 4,
+      ),
+
+      // Checkbox
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return successColor;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(whiteColor),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusM),
+          borderRadius: BorderRadius.circular(4),
         ),
       ),
-    ),
 
-    // Text кнопки
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: primaryColor,
+      // Progress Indicator
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: primaryColor,
+        linearTrackColor: Color(0xFFE0E0E0),
       ),
-    ),
 
-    // FAB
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: primaryColor,
-      foregroundColor: textOnPrimary,
-    ),
+      // Divider
+      dividerTheme: DividerThemeData(
+        color: Colors.grey[200],
+        thickness: 1,
+        space: 1,
+      ),
+    );
+  }
 
-    // Input поля
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: surfaceColor,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: paddingM,
-        vertical: paddingM,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusM),
-        borderSide: BorderSide(color: XelaColor.Gray9),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusM),
-        borderSide: BorderSide(color: XelaColor.Gray9),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusM),
-        borderSide: const BorderSide(color: primaryColor, width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusM),
-        borderSide: const BorderSide(color: errorColor),
-      ),
-      hintStyle: TextStyle(color: textHint),
-    ),
+  // ═══════════════════════════════════════════════════════════════
+  // HELPER МЕТОДИ
+  // ═══════════════════════════════════════════════════════════════
 
-    // Картки
-    cardTheme: CardThemeData(
-      color: surfaceColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radiusL),
-      ),
-    ),
+  /// Match Score колір залежно від значення
+  static Color getMatchScoreColor(int score) {
+    if (score >= 80) return const Color(0xFF4CAF50); // Зелений
+    if (score >= 60) return const Color(0xFF8BC34A); // Світло-зелений
+    if (score >= 40) return const Color(0xFFFFC107); // Жовтий
+    if (score >= 20) return const Color(0xFFFF9800); // Помаранчевий
+    return const Color(0xFFF44336); // Червоний
+  }
 
-    // Divider
-    dividerTheme: DividerThemeData(
-      color: XelaColor.Gray10,
-      thickness: 1,
-    ),
-  );
+  /// Статус колір
+  static Color getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'done':
+        return successColor;
+      case 'skipped':
+        return warningColor;
+      case 'in_progress':
+        return primaryColor;
+      default:
+        return Colors.grey;
+    }
+  }
 }
