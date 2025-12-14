@@ -3,11 +3,12 @@ import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/models/career_plan_model.dart';
+import 'package:anantata/screens/goal/goals_list_screen.dart';
 
 /// Екран генерації кар'єрного плану
 /// Показує анімацію та результати генерації
-/// Версія: 1.0.0
-/// Дата: 13.12.2025
+/// Версія: 1.1.0 - Перехід на goals_list після генерації
+/// Дата: 15.12.2025
 
 class GenerationScreen extends StatefulWidget {
   final Map<int, String> answers;
@@ -38,6 +39,10 @@ class _GenerationScreenState extends State<GenerationScreen>
   // Результат
   CareerPlanModel? _plan;
   String? _errorMessage;
+
+  // 🆕 Інформація про слоти цілей
+  int _goalsCount = 0;
+  int _maxGoals = 3;
 
   // Анімації
   late AnimationController _pulseController;
@@ -137,6 +142,9 @@ class _GenerationScreenState extends State<GenerationScreen>
       final savedPlan = await _storage.saveGeneratedPlan(generatedPlan);
       await _storage.setAssessmentComplete(true);
 
+      // 🆕 Отримуємо інформацію про кількість цілей
+      final goalsList = await _storage.getGoalsList();
+
       await _updateState(
         GenerationState.saving,
         'Фінальні штрихи...',
@@ -150,6 +158,8 @@ class _GenerationScreenState extends State<GenerationScreen>
         _currentMessage = 'Ваш план готовий!';
         _progress = 1.0;
         _plan = savedPlan;
+        _goalsCount = goalsList.count;
+        _maxGoals = GoalsListModel.maxGoals;
       });
 
       _pulseController.stop();
@@ -191,6 +201,16 @@ class _GenerationScreenState extends State<GenerationScreen>
     widget.onComplete?.call();
   }
 
+  /// 🆕 Перейти до списку цілей
+  void _viewGoalsList() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const GoalsListScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -224,7 +244,7 @@ class _GenerationScreenState extends State<GenerationScreen>
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -305,7 +325,7 @@ class _GenerationScreenState extends State<GenerationScreen>
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: Colors.green.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -339,31 +359,62 @@ class _GenerationScreenState extends State<GenerationScreen>
           _buildPlanStatsCard(),
           const SizedBox(height: 32),
 
-          // Кнопка
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _viewPlan,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Переглянути план',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
+          // 🆕 Кнопки навігації
+          _buildNavigationButtons(),
+
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  /// 🆕 Кнопки навігації після генерації
+  Widget _buildNavigationButtons() {
+    return Column(
+      children: [
+        // Основна кнопка - Переглянути план
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _viewPlan,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Переглянути план',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Вторинна кнопка - Мої цілі
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _viewGoalsList,
+            icon: const Icon(Icons.folder_outlined),
+            label: Text('Мої цілі ($_goalsCount/$_maxGoals)'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+              side: BorderSide(color: AppTheme.primaryColor),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -380,7 +431,7 @@ class _GenerationScreenState extends State<GenerationScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -441,10 +492,10 @@ class _GenerationScreenState extends State<GenerationScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.05),
+        color: AppTheme.primaryColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.primaryColor.withOpacity(0.2),
+          color: AppTheme.primaryColor.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -490,7 +541,7 @@ class _GenerationScreenState extends State<GenerationScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -575,7 +626,7 @@ class _GenerationScreenState extends State<GenerationScreen>
           width: 100,
           height: 100,
           decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
+            color: Colors.red.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(

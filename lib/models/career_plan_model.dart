@@ -1,7 +1,8 @@
-/// Модель кар'єрного плану Anantata v2.0
+/// Модель кар'єрного плану Anantata v2.1
 /// 10 напрямків × 10 кроків = 100 кроків на блок
-/// Версія: 2.0
-/// Дата: 12.12.2025
+/// + Підтримка до 3 цілей
+/// Версія: 2.1.0
+/// Дата: 15.12.2025
 
 // ═══════════════════════════════════════════════════════════════
 // ENUMS
@@ -642,5 +643,252 @@ class DirectionStats {
     if (isComplete) return '✅';
     if (doneCount > 0) return '🔄';
     return '⏳';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🆕 МОДЕЛЬ СПИСКУ ЦІЛЕЙ (до 3 цілей)
+// ═══════════════════════════════════════════════════════════════
+
+/// Короткий опис цілі для списку
+class GoalSummary {
+  final String id;
+  final String title;
+  final String targetSalary;
+  final int matchScore;
+  final String gapAnalysis;
+  final bool isPrimary;
+  final DateTime createdAt;
+  final double progress; // 0-100
+  final int completedSteps;
+  final int totalSteps;
+
+  GoalSummary({
+    required this.id,
+    required this.title,
+    required this.targetSalary,
+    required this.matchScore,
+    required this.gapAnalysis,
+    required this.isPrimary,
+    required this.createdAt,
+    required this.progress,
+    required this.completedSteps,
+    required this.totalSteps,
+  });
+
+  factory GoalSummary.fromCareerPlan(CareerPlanModel plan) {
+    return GoalSummary(
+      id: plan.goal.id,
+      title: plan.goal.title,
+      targetSalary: plan.goal.targetSalary,
+      matchScore: plan.matchScore,
+      gapAnalysis: plan.gapAnalysis,
+      isPrimary: plan.goal.isPrimary,
+      createdAt: plan.goal.createdAt,
+      progress: plan.overallProgress,
+      completedSteps: plan.completedStepsCount,
+      totalSteps: plan.steps.length,
+    );
+  }
+
+  factory GoalSummary.fromJson(Map<String, dynamic> json) {
+    return GoalSummary(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      targetSalary: json['target_salary'] as String,
+      matchScore: json['match_score'] as int,
+      gapAnalysis: json['gap_analysis'] as String,
+      isPrimary: json['is_primary'] as bool? ?? false,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
+      completedSteps: json['completed_steps'] as int? ?? 0,
+      totalSteps: json['total_steps'] as int? ?? 100,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'target_salary': targetSalary,
+      'match_score': matchScore,
+      'gap_analysis': gapAnalysis,
+      'is_primary': isPrimary,
+      'created_at': createdAt.toIso8601String(),
+      'progress': progress,
+      'completed_steps': completedSteps,
+      'total_steps': totalSteps,
+    };
+  }
+
+  GoalSummary copyWith({
+    String? id,
+    String? title,
+    String? targetSalary,
+    int? matchScore,
+    String? gapAnalysis,
+    bool? isPrimary,
+    DateTime? createdAt,
+    double? progress,
+    int? completedSteps,
+    int? totalSteps,
+  }) {
+    return GoalSummary(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      targetSalary: targetSalary ?? this.targetSalary,
+      matchScore: matchScore ?? this.matchScore,
+      gapAnalysis: gapAnalysis ?? this.gapAnalysis,
+      isPrimary: isPrimary ?? this.isPrimary,
+      createdAt: createdAt ?? this.createdAt,
+      progress: progress ?? this.progress,
+      completedSteps: completedSteps ?? this.completedSteps,
+      totalSteps: totalSteps ?? this.totalSteps,
+    );
+  }
+
+  /// Форматована дата
+  String get formattedDate {
+    final day = createdAt.day.toString().padLeft(2, '0');
+    final month = _monthName(createdAt.month);
+    final year = createdAt.year;
+    final hour = createdAt.hour.toString().padLeft(2, '0');
+    final minute = createdAt.minute.toString().padLeft(2, '0');
+    return '$day $month $year, $hour:$minute';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
+      'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'
+    ];
+    return months[month - 1];
+  }
+
+  /// Колір Match Score
+  String get scoreColor {
+    if (matchScore >= 70) return 'green';
+    if (matchScore >= 40) return 'orange';
+    return 'red';
+  }
+}
+
+/// Модель списку цілей (до 3 цілей)
+class GoalsListModel {
+  static const int maxGoals = 3;
+
+  final List<GoalSummary> goals;
+  final String? primaryGoalId;
+
+  GoalsListModel({
+    required this.goals,
+    this.primaryGoalId,
+  });
+
+  /// Кількість цілей
+  int get count => goals.length;
+
+  /// Чи можна додати нову ціль
+  bool get canAddNew => goals.length < maxGoals;
+
+  /// Скільки ще можна додати
+  int get availableSlots => maxGoals - goals.length;
+
+  /// Головна ціль
+  GoalSummary? get primaryGoal {
+    if (primaryGoalId == null) return goals.isNotEmpty ? goals.first : null;
+    try {
+      return goals.firstWhere((g) => g.id == primaryGoalId);
+    } catch (_) {
+      return goals.isNotEmpty ? goals.first : null;
+    }
+  }
+
+  /// Чи є ціль головною
+  bool isPrimary(String goalId) => primaryGoalId == goalId;
+
+  factory GoalsListModel.fromJson(Map<String, dynamic> json) {
+    return GoalsListModel(
+      goals: (json['goals'] as List<dynamic>)
+          .map((g) => GoalSummary.fromJson(g as Map<String, dynamic>))
+          .toList(),
+      primaryGoalId: json['primary_goal_id'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'goals': goals.map((g) => g.toJson()).toList(),
+      'primary_goal_id': primaryGoalId,
+    };
+  }
+
+  GoalsListModel copyWith({
+    List<GoalSummary>? goals,
+    String? primaryGoalId,
+  }) {
+    return GoalsListModel(
+      goals: goals ?? this.goals,
+      primaryGoalId: primaryGoalId ?? this.primaryGoalId,
+    );
+  }
+
+  /// Додати нову ціль
+  GoalsListModel addGoal(GoalSummary goal) {
+    if (!canAddNew) return this;
+    final newGoals = [...goals, goal];
+    return copyWith(
+      goals: newGoals,
+      primaryGoalId: primaryGoalId ?? goal.id,
+    );
+  }
+
+  /// Видалити ціль
+  GoalsListModel removeGoal(String goalId) {
+    final newGoals = goals.where((g) => g.id != goalId).toList();
+    String? newPrimaryId = primaryGoalId;
+
+    // Якщо видаляємо головну ціль, обираємо першу з тих що залишились
+    if (primaryGoalId == goalId) {
+      newPrimaryId = newGoals.isNotEmpty ? newGoals.first.id : null;
+    }
+
+    return copyWith(
+      goals: newGoals,
+      primaryGoalId: newPrimaryId,
+    );
+  }
+
+  /// Встановити головну ціль
+  GoalsListModel setPrimaryGoal(String goalId) {
+    // Оновлюємо isPrimary для всіх цілей
+    final newGoals = goals.map((g) {
+      return g.copyWith(isPrimary: g.id == goalId);
+    }).toList();
+
+    return copyWith(
+      goals: newGoals,
+      primaryGoalId: goalId,
+    );
+  }
+
+  /// Оновити прогрес цілі
+  GoalsListModel updateGoalProgress(String goalId, double progress, int completedSteps) {
+    final newGoals = goals.map((g) {
+      if (g.id == goalId) {
+        return g.copyWith(
+          progress: progress,
+          completedSteps: completedSteps,
+        );
+      }
+      return g;
+    }).toList();
+
+    return copyWith(goals: newGoals);
+  }
+
+  /// Порожній список
+  factory GoalsListModel.empty() {
+    return GoalsListModel(goals: [], primaryGoalId: null);
   }
 }
