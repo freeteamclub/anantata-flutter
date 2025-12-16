@@ -12,9 +12,10 @@ import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/goal/goals_list_screen.dart';
 
-/// Головний екран додатку v4.2
-/// + Кнопка "Мої цілі" в швидких діях
-/// Версія: 4.2
+/// Головний екран додатку v4.3
+/// + Виправлено клік на "Ваш прогрес" → PlanScreen
+/// + Зелена шкала прогресу
+/// Версія: 4.3
 /// Дата: 15.12.2025
 
 class HomeScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _userName = '';
   bool _isLoading = true;
 
-  // 🆕 Інформація про цілі
+  // Інформація про цілі
   int _goalsCount = 0;
   int _maxGoals = 3;
 
@@ -62,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // 🆕 Отримуємо інформацію про цілі
+    // Отримуємо інформацію про цілі
     final goalsList = await _storage.getGoalsList();
 
     final displayName = _supabase.isAuthenticated
@@ -147,7 +148,13 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (context) => const GoalsListScreen(),
       ),
-    ).then((_) => _loadData());
+    ).then((result) {
+      _loadData();
+      // Якщо результат 'openPlan' - переходимо на таб План
+      if (result == 'openPlan') {
+        _navigateToTab(1);
+      }
+    });
   }
 
   @override
@@ -275,7 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final totalDirections = _plan?.directions.length ?? 10;
 
     return GestureDetector(
-      onTap: _plan != null ? () => _navigateToTab(3) : null,
+      // ✅ ВИПРАВЛЕНО: Клік веде на PlanScreen (таб 1), а не на Профіль
+      onTap: _plan != null ? () => _navigateToTab(1) : null,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -303,17 +311,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppTheme.textPrimary,
                   ),
                 ),
+                // ✅ ВИПРАВЛЕНО: Бейдж тепер ЗЕЛЕНИЙ
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    color: Colors.green,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${progress.toStringAsFixed(0)}%',
                     style: const TextStyle(
                       fontFamily: 'Akrobat',
-                      color: AppTheme.primaryColor,
+                      color: Colors.white,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -321,12 +330,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            // ✅ ВИПРАВЛЕНО: Шкала тепер ЗЕЛЕНА
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: progress / 100,
                 backgroundColor: Colors.grey[200],
-                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
                 minHeight: 8,
               ),
             ),

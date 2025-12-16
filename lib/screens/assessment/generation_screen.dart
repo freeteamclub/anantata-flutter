@@ -206,7 +206,7 @@ class _GenerationScreenState extends State<GenerationScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => const GoalsListScreen(),
+        builder: (context) => GoalsListScreen(),
       ),
     );
   }

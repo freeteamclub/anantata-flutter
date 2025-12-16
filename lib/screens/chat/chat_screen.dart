@@ -7,11 +7,21 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 1.0.0
-/// Дата: 14.12.2025
+/// Версія: 1.2.0 - Окремі чати для кожної цілі + підказки завжди видимі
+/// Дата: 15.12.2025
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  /// ID цілі для контекстного чату. Якщо null - загальний чат
+  final String? goalId;
+
+  /// Назва цілі для відображення в AppBar
+  final String? goalTitle;
+
+  const ChatScreen({
+    super.key,
+    this.goalId,
+    this.goalTitle,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -44,8 +54,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Завантажити історію чату з Supabase
   Future<void> _loadChatHistory() async {
-    // Завантажуємо план
-    final plan = await _storage.getCareerPlan();
+    // Завантажуємо план для конкретної цілі або поточний
+    CareerPlanModel? plan;
+    if (widget.goalId != null) {
+      plan = await _storage.getPlanForGoal(widget.goalId!);
+    }
+    plan ??= await _storage.getCareerPlan();
+
     setState(() {
       _plan = plan;
     });
@@ -53,7 +68,12 @@ class _ChatScreenState extends State<ChatScreen> {
     // Якщо авторизований - завантажуємо історію з Supabase
     if (_supabase.isAuthenticated) {
       try {
-        final history = await _supabase.getChatHistory(limit: 50);
+        final history = await _supabase.getChatHistory(
+          limit: 50,
+          // НЕ фільтруємо по goalId - всі повідомлення в загальному чаті
+          // TODO: Синхронізувати goals з Supabase для підтримки окремих чатів
+          goalId: null,
+        );
         if (history.isNotEmpty) {
           setState(() {
             _messages.clear();
@@ -77,13 +97,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// Зберегти повідомлення в Supabase
-  Future<void> _saveToCoud(String text, bool isUser) async {
+  Future<void> _saveToCloud(String text, bool isUser) async {
     if (_supabase.isAuthenticated) {
       try {
         await _supabase.saveChatMessage(
           text: text,
           isUser: isUser,
-          // Не передаємо goal_id - він може не існувати в Supabase
+          // НЕ передаємо goalId - він не існує в Supabase (foreign key constraint)
+          // TODO: Синхронізувати goals з Supabase для підтримки окремих чатів
           goalId: null,
         );
       } catch (e) {
@@ -93,6 +114,25 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   String _getGreetingMessage() {
+    // Якщо це чат для конкретної цілі
+    if (widget.goalId != null && _plan != null) {
+      final progress = _plan!.overallProgress.toStringAsFixed(0);
+      final goal = _plan!.goal.title;
+      final nextStep = _plan!.nextStep;
+
+      String greeting = 'Привіт! 👋 Я ваш AI коуч для цієї цілі.\n\n';
+      greeting += '🎯 Ціль: $goal\n';
+      greeting += '📊 Прогрес: $progress%\n';
+
+      if (nextStep != null) {
+        greeting += '📌 Наступний крок: ${nextStep.title}\n';
+      }
+
+      greeting += '\nЗапитуйте будь-що про цю ціль!';
+      return greeting;
+    }
+
+    // Загальний чат
     if (_plan == null) {
       return 'Привіт! 👋 Я ваш AI кар\'єрний коуч.\n\n'
           'Схоже, у вас ще немає плану розвитку. '
@@ -129,7 +169,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Зберігаємо в Supabase
     if (saveToCloud) {
-      _saveToCoud(text, false);
+      _saveToCloud(text, false);
     }
   }
 
@@ -144,7 +184,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     // Зберігаємо в Supabase
-    _saveToCoud(text, true);
+    _saveToCloud(text, true);
   }
 
   void _scrollToBottom() {
@@ -228,8 +268,8 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _buildMessagesList(),
           ),
 
-          // Швидкі дії
-          if (_messages.length <= 2) _buildQuickActions(),
+          // ✅ Швидкі дії показуються ЗАВЖДИ
+          _buildQuickActions(),
 
           // Індикатор друку
           if (_isTyping) _buildTypingIndicator(),
@@ -242,8 +282,23 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
+    // Визначаємо заголовок
+    final title = widget.goalId != null
+        ? (widget.goalTitle ?? 'Чат про ціль')
+        : 'AI Коуч';
+
+    final subtitle = widget.goalId != null
+        ? 'Контекстний чат'
+        : 'Онлайн';
+
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
+      leading: widget.goalId != null
+          ? IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
+      )
+          : null,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -254,34 +309,37 @@ class _ChatScreenState extends State<ChatScreen> {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.psychology,
+            child: Icon(
+              widget.goalId != null ? Icons.flag : Icons.psychology,
               color: Colors.white,
               size: 22,
             ),
           ),
           const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'AI Коуч',
-                style: TextStyle(
-                  fontFamily: 'Bitter',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Bitter',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Text(
-                'Онлайн',
-                style: TextStyle(
-                  fontFamily: 'NunitoSans',
-                  fontSize: 12,
-                  color: Colors.white70,
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontFamily: 'NunitoSans',
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -374,7 +432,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildQuickActions() {
-    final quickActions = [
+    // Різні підказки для контекстного чату
+    final quickActions = widget.goalId != null
+        ? [
+      QuickAction(icon: Icons.arrow_forward, text: 'Що робити далі?'),
+      QuickAction(icon: Icons.help_outline, text: 'Поясни поточний крок'),
+      QuickAction(icon: Icons.trending_up, text: 'Як прискорити прогрес?'),
+      QuickAction(icon: Icons.lightbulb_outline, text: 'Поради для цієї цілі'),
+    ]
+        : [
       QuickAction(icon: Icons.arrow_forward, text: 'Що робити далі?'),
       QuickAction(icon: Icons.help_outline, text: 'Поясни поточний крок'),
       QuickAction(icon: Icons.emoji_emotions, text: 'Мотивація'),

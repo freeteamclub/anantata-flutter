@@ -32,6 +32,12 @@ dependencies:
   # Google Sign-In
   google_sign_in: ^6.2.1
 
+  # Share
+  share_plus: ^7.2.1
+
+  # File System
+  path_provider: ^2.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

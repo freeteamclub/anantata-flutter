@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/storage_service.dart';
@@ -8,7 +11,7 @@ import 'package:anantata/screens/goal/goal_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 
 /// Екран "Мої цілі" — управління до 3 цілей
-/// Версія: 1.1.0 - Виправлено кнопки Обговорити та Додати нову ціль
+/// Версія: 1.2.0 - Виправлено const конструктор
 /// Дата: 15.12.2025
 
 class GoalsListScreen extends StatefulWidget {
@@ -93,36 +96,167 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   }
 
   void _showGoalResults(GoalSummary goal) {
-    // TODO: Оновити GoalScreen для підтримки конкретної цілі
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const GoalScreen(),
+        builder: (context) => GoalScreen(goalId: goal.id),
       ),
-    );
+    ).then((result) {
+      // Якщо користувач натиснув "Переглянути план"
+      if (result == 'openPlan') {
+        Navigator.pop(context, 'openPlan');
+      }
+    });
   }
 
-  /// 🔧 ВИПРАВЛЕНО: Відкриває чат
   void _openChat(GoalSummary goal) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ChatScreen(),
+        builder: (context) => ChatScreen(
+          goalId: goal.id,
+          goalTitle: goal.title,
+        ),
       ),
     );
   }
 
   void _shareGoal(GoalSummary goal) {
-    // TODO: Поділитися результатами
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('📤 Функція "Поділитися" буде додана пізніше'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    final shareText = '''
+🎯 Моя ціль в Anantata
+
+📌 ${goal.title}
+💰 Цільова зарплата: ${goal.targetSalary}
+📊 Match Score: ${goal.matchScore}%
+📈 Прогрес: ${goal.completedSteps}/${goal.totalSteps} кроків виконано
+
+Створи свій план на anantata.ai 🚀
+''';
+
+    Share.share(shareText, subject: 'Моя ціль в Anantata');
   }
 
-  /// 🔧 ВИПРАВЛЕНО: Правильний flow для додавання нової цілі
+  /// Завантажити план у форматі MD
+  Future<void> _downloadPlan(GoalSummary goal) async {
+    // Показуємо індикатор завантаження
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('📄 Генерую файл...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      // Отримуємо повний план
+      final plan = await _storage.getPlanForGoal(goal.id);
+
+      if (plan == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ План не знайдено'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Генеруємо MD контент
+      final mdContent = _generateMarkdown(plan);
+
+      // Зберігаємо файл
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'anantata_plan_${DateTime.now().millisecondsSinceEpoch}.md';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(mdContent);
+
+      // Ділимося файлом
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Мій план Anantata',
+      );
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Помилка: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Генерує Markdown контент плану
+  String _generateMarkdown(CareerPlanModel plan) {
+    final buffer = StringBuffer();
+
+    // Заголовок
+    buffer.writeln('# 🎯 Мій кар\'єрний план - Anantata');
+    buffer.writeln();
+    buffer.writeln('---');
+    buffer.writeln();
+
+    // Ціль
+    buffer.writeln('## 📌 Ціль');
+    buffer.writeln('**${plan.goal.title}**');
+    buffer.writeln();
+    buffer.writeln('💰 **Цільова зарплата:** ${plan.goal.targetSalary}');
+    buffer.writeln();
+
+    // Match Score
+    buffer.writeln('## 📊 Match Score: ${plan.matchScore}%');
+    buffer.writeln();
+
+    // Gap Analysis
+    buffer.writeln('## 🔍 Аналіз розриву');
+    buffer.writeln(plan.gapAnalysis);
+    buffer.writeln();
+
+    // Прогрес
+    buffer.writeln('## 📈 Прогрес');
+    buffer.writeln('- Виконано: **${plan.completedStepsCount}/${plan.steps.length}** кроків');
+    buffer.writeln('- Прогрес: **${plan.overallProgress.toStringAsFixed(0)}%**');
+    buffer.writeln();
+    buffer.writeln('---');
+    buffer.writeln();
+
+    // 100 кроків
+    buffer.writeln('## 📋 100 кроків до мети');
+    buffer.writeln();
+
+    for (final direction in plan.directions) {
+      final dirSteps = plan.getStepsForDirection(direction.id);
+      final doneCount = dirSteps.where((s) => s.status == ItemStatus.done).length;
+
+      buffer.writeln('### ${direction.directionNumber}. ${direction.title}');
+      buffer.writeln('*Прогрес: $doneCount/${dirSteps.length} кроків*');
+      buffer.writeln();
+
+      for (final step in dirSteps) {
+        final checkbox = step.status == ItemStatus.done ? '[x]' : '[ ]';
+        final statusEmoji = step.status == ItemStatus.done
+            ? ' ✅'
+            : (step.status == ItemStatus.skipped ? ' ⏭️' : '');
+
+        buffer.writeln('- $checkbox **Крок ${step.localNumber}:** ${step.title}$statusEmoji');
+        if (step.description.isNotEmpty) {
+          buffer.writeln('  - ${step.description}');
+        }
+      }
+      buffer.writeln();
+    }
+
+    // Футер
+    buffer.writeln('---');
+    buffer.writeln();
+    buffer.writeln('*Згенеровано в [Anantata](https://anantata.ai) — ${DateTime.now().toString().substring(0, 16)}*');
+
+    return buffer.toString();
+  }
+
   void _addNewGoal() {
     Navigator.push(
       context,
@@ -130,9 +264,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         builder: (context) => AssessmentScreen(
           onComplete: () {},
           onSubmit: (answers) {
-            // Закриваємо AssessmentScreen
             Navigator.pop(context);
-            // Відкриваємо GenerationScreen
             _navigateToGeneration(answers);
           },
           onBack: () {
@@ -143,7 +275,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     );
   }
 
-  /// Перехід до генерації плану
   void _navigateToGeneration(Map<int, String> answers) {
     Navigator.push(
       context,
@@ -151,11 +282,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         builder: (context) => GenerationScreen(
           answers: answers,
           onComplete: () {
-            // Закриваємо GenerationScreen
             Navigator.pop(context);
-            // Оновлюємо список цілей
             _loadGoals();
-            // Показуємо повідомлення
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -189,6 +317,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             Text(
               'Мої цілі (${_goalsList?.count ?? 0}/${GoalsListModel.maxGoals})',
               style: const TextStyle(
+                fontFamily: 'Bitter',
                 color: AppTheme.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -198,7 +327,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
           : _buildContent(),
     );
   }
@@ -211,12 +340,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Список цілей
         ...(_goalsList!.goals.map((goal) => _buildGoalCard(goal))),
-
         const SizedBox(height: 24),
-
-        // Кнопка додавання нової цілі
         if (_goalsList!.canAddNew) _buildAddGoalButton(),
       ],
     );
@@ -236,7 +361,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.flag_outlined,
                 size: 60,
                 color: AppTheme.primaryColor,
@@ -246,6 +371,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             const Text(
               'У вас ще немає цілей',
               style: TextStyle(
+                fontFamily: 'Bitter',
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -255,6 +381,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             Text(
               'Пройдіть оцінювання, щоб створити\nперсональний план розвитку',
               style: TextStyle(
+                fontFamily: 'NunitoSans',
                 fontSize: 16,
                 color: Colors.grey[600],
               ),
@@ -264,14 +391,14 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             ElevatedButton.icon(
               onPressed: _addNewGoal,
               icon: const Icon(Icons.add),
-              label: const Text('Створити першу ціль'),
+              label: const Text(
+                'Створити першу ціль',
+                style: TextStyle(fontFamily: 'NunitoSans', fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -291,9 +418,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: isPrimary
-            ? Border.all(color: Colors.amber, width: 2)
-            : null,
+        border: isPrimary ? Border.all(color: Colors.amber, width: 2) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -307,15 +432,11 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Заголовок з іконкою
             Row(
               children: [
                 if (isPrimary)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.amber,
                       borderRadius: BorderRadius.circular(4),
@@ -328,6 +449,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                         Text(
                           'Головна',
                           style: TextStyle(
+                            fontFamily: 'NunitoSans',
                             color: Colors.white,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -338,22 +460,17 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Назва цілі
             Text(
               goal.title,
               style: const TextStyle(
+                fontFamily: 'Bitter',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
               ),
             ),
-
             const SizedBox(height: 8),
-
-            // Зарплата
             Row(
               children: [
                 const Icon(Icons.attach_money, size: 18, color: Colors.green),
@@ -361,6 +478,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Text(
                   goal.targetSalary,
                   style: TextStyle(
+                    fontFamily: 'NunitoSans',
                     fontSize: 14,
                     color: Colors.grey[700],
                     fontWeight: FontWeight.w500,
@@ -368,10 +486,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 4),
-
-            // Дата створення
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[500]),
@@ -379,33 +494,14 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Text(
                   goal.formattedDate,
                   style: TextStyle(
+                    fontFamily: 'NunitoSans',
                     fontSize: 13,
                     color: Colors.grey[500],
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 4),
-
-            // Статус
-            Row(
-              children: [
-                Icon(Icons.sync, size: 16, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  'Активна',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-
             const SizedBox(height: 12),
-
-            // Прогрес
             if (goal.totalSteps > 0) ...[
               Row(
                 children: [
@@ -426,6 +522,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   Text(
                     '${goal.completedSteps}/${goal.totalSteps}',
                     style: TextStyle(
+                      fontFamily: 'NunitoSans',
                       fontSize: 13,
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
@@ -435,11 +532,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
               ),
               const SizedBox(height: 16),
             ],
-
-            // Кнопки дій - Перший ряд
             Row(
               children: [
-                // Результат
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.visibility,
@@ -448,7 +542,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Обговорити
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.chat_bubble_outline,
@@ -458,13 +551,9 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
-
-            // Кнопки дій - Другий ряд
             Row(
               children: [
-                // Головна ціль
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.star,
@@ -475,7 +564,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Видалити
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.delete_outline,
@@ -486,17 +574,25 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
-
-            // Поділитися
-            SizedBox(
-              width: double.infinity,
-              child: _buildActionButton(
-                icon: Icons.share,
-                label: 'Поділитися',
-                onTap: () => _shareGoal(goal),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.share,
+                    label: 'Поділитися',
+                    onTap: () => _shareGoal(goal),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.download,
+                    label: 'Завантажити',
+                    onTap: () => _downloadPlan(goal),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -535,6 +631,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 child: Text(
                   label,
                   style: TextStyle(
+                    fontFamily: 'NunitoSans',
                     fontSize: 13,
                     color: fgColor,
                     fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
@@ -559,7 +656,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         border: Border.all(
           color: AppTheme.primaryColor.withValues(alpha: 0.3),
           width: 2,
-          strokeAlign: BorderSide.strokeAlignInside,
         ),
       ),
       child: Material(
@@ -578,7 +674,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                     color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.add,
                     size: 32,
                     color: AppTheme.primaryColor,
@@ -588,6 +684,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 const Text(
                   'Додати нову ціль',
                   style: TextStyle(
+                    fontFamily: 'Bitter',
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
@@ -597,6 +694,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Text(
                   '(доступно ще $availableSlots)',
                   style: TextStyle(
+                    fontFamily: 'NunitoSans',
                     fontSize: 14,
                     color: Colors.grey[500],
                   ),

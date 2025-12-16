@@ -4,12 +4,14 @@ import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/storage_service.dart';
 
 /// Екран "Моя ціль" - показує Match Score та Gap Analysis
-/// Аналог Kotlin версії
-/// Версія: 1.0.0
-/// Дата: 13.12.2025
+/// Версія: 2.1.0 - Виправлено кнопку "Переглянути план" + зелена шкала
+/// Дата: 15.12.2025
 
 class GoalScreen extends StatefulWidget {
-  const GoalScreen({super.key});
+  /// ID цілі для відображення. Якщо null - показує поточний/головний план
+  final String? goalId;
+
+  const GoalScreen({super.key, this.goalId});
 
   @override
   State<GoalScreen> createState() => _GoalScreenState();
@@ -28,11 +30,27 @@ class _GoalScreenState extends State<GoalScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final plan = await _storage.getCareerPlan();
+
+    CareerPlanModel? plan;
+
+    // Якщо передано goalId - завантажуємо конкретну ціль
+    if (widget.goalId != null) {
+      plan = await _storage.getPlanForGoal(widget.goalId!);
+    }
+
+    // Якщо goalId не передано або план не знайдено - завантажуємо поточний
+    plan ??= await _storage.getCareerPlan();
+
     setState(() {
       _plan = plan;
       _isLoading = false;
     });
+  }
+
+  /// Перехід до екрану плану
+  void _navigateToPlan() {
+    // Повертаємось назад з результатом 'openPlan'
+    Navigator.pop(context, 'openPlan');
   }
 
   @override
@@ -47,7 +65,11 @@ class _GoalScreenState extends State<GoalScreen> {
         ),
         title: const Text(
           'Моя ціль',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontFamily: 'Bitter',
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -70,12 +92,20 @@ class _GoalScreenState extends State<GoalScreen> {
           const SizedBox(height: 16),
           Text(
             'Ціль ще не встановлена',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            style: TextStyle(
+              fontFamily: 'NunitoSans',
+              fontSize: 18,
+              color: Colors.grey[600],
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Пройдіть оцінювання, щоб отримати план',
-            style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            style: TextStyle(
+              fontFamily: 'NunitoSans',
+              fontSize: 14,
+              color: Colors.grey[400],
+            ),
           ),
         ],
       ),
@@ -104,13 +134,19 @@ class _GoalScreenState extends State<GoalScreen> {
           _buildStatsCard(),
           const SizedBox(height: 24),
 
-          // Кнопка переглянути план
+          // Кнопка переглянути план - ВИПРАВЛЕНО: відкриває PlanScreen
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _navigateToPlan,
               icon: const Icon(Icons.assignment_outlined),
-              label: const Text('Переглянути план'),
+              label: const Text(
+                'Переглянути план',
+                style: TextStyle(
+                  fontFamily: 'NunitoSans',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
@@ -128,11 +164,16 @@ class _GoalScreenState extends State<GoalScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () {
-                // TODO: Navigate to assessment
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.refresh),
-              label: const Text('Пройти оцінювання знову'),
+              label: const Text(
+                'Пройти оцінювання знову',
+                style: TextStyle(
+                  fontFamily: 'NunitoSans',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -157,7 +198,7 @@ class _GoalScreenState extends State<GoalScreen> {
         gradient: LinearGradient(
           colors: [
             AppTheme.primaryColor,
-            AppTheme.primaryColor.withOpacity(0.8),
+            AppTheme.primaryColor.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -165,7 +206,7 @@ class _GoalScreenState extends State<GoalScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            color: AppTheme.primaryColor.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -179,19 +220,46 @@ class _GoalScreenState extends State<GoalScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.flag, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Ваша ціль',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ваша ціль',
+                      style: TextStyle(
+                        fontFamily: 'NunitoSans',
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (_plan?.goal.isPrimary == true)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          '⭐ Головна',
+                          style: TextStyle(
+                            fontFamily: 'NunitoSans',
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -200,6 +268,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             _plan?.goal.title ?? 'Кар\'єрний розвиток',
             style: const TextStyle(
+              fontFamily: 'Bitter',
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -213,6 +282,7 @@ class _GoalScreenState extends State<GoalScreen> {
               Text(
                 'Цільовий дохід: ${_plan?.goal.targetSalary ?? "\$3,000-5,000"}',
                 style: const TextStyle(
+                  fontFamily: 'NunitoSans',
                   color: Colors.white70,
                   fontSize: 14,
                 ),
@@ -237,7 +307,7 @@ class _GoalScreenState extends State<GoalScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -248,6 +318,7 @@ class _GoalScreenState extends State<GoalScreen> {
           const Text(
             'Match Score',
             style: TextStyle(
+              fontFamily: 'NunitoSans',
               fontSize: 14,
               color: Colors.grey,
               fontWeight: FontWeight.w500,
@@ -261,8 +332,9 @@ class _GoalScreenState extends State<GoalScreen> {
               Text(
                 '$score',
                 style: TextStyle(
+                  fontFamily: 'Akrobat',
                   fontSize: 64,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
                   color: scoreColor,
                 ),
               ),
@@ -271,8 +343,9 @@ class _GoalScreenState extends State<GoalScreen> {
                 child: Text(
                   '%',
                   style: TextStyle(
+                    fontFamily: 'Akrobat',
                     fontSize: 28,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
                     color: scoreColor,
                   ),
                 ),
@@ -294,6 +367,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             _getScoreDescription(score),
             style: TextStyle(
+              fontFamily: 'NunitoSans',
               fontSize: 14,
               color: Colors.grey[600],
             ),
@@ -309,26 +383,27 @@ class _GoalScreenState extends State<GoalScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.05),
+        color: AppTheme.primaryColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.primaryColor.withOpacity(0.2),
+          color: AppTheme.primaryColor.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.analytics_outlined,
                 color: AppTheme.primaryColor,
                 size: 22,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Аналіз розриву',
                 style: TextStyle(
+                  fontFamily: 'Bitter',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.primaryColor,
@@ -340,6 +415,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             _plan?.gapAnalysis ?? 'Аналіз недоступний',
             style: TextStyle(
+              fontFamily: 'NunitoSans',
               fontSize: 15,
               color: Colors.grey[700],
               height: 1.5,
@@ -367,7 +443,7 @@ class _GoalScreenState extends State<GoalScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -382,6 +458,7 @@ class _GoalScreenState extends State<GoalScreen> {
               const Text(
                 'Ваш прогрес',
                 style: TextStyle(
+                  fontFamily: 'Bitter',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -389,26 +466,28 @@ class _GoalScreenState extends State<GoalScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: Colors.green,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${progress.toStringAsFixed(0)}%',
                   style: const TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Akrobat',
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
+          // ✅ ВИПРАВЛЕНО: Шкала тепер ЗЕЛЕНА
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: progress / 100,
               backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
               minHeight: 8,
             ),
           ),
@@ -446,14 +525,16 @@ class _GoalScreenState extends State<GoalScreen> {
         Text(
           value,
           style: const TextStyle(
+            fontFamily: 'Akrobat',
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
             color: AppTheme.textPrimary,
           ),
         ),
         Text(
           label,
           style: TextStyle(
+            fontFamily: 'NunitoSans',
             fontSize: 12,
             color: Colors.grey[600],
           ),

@@ -5,8 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Supabase
-/// Версія: 2.1.0 - Fixed Google Auth
-/// Дата: 14.12.2025
+/// Версія: 2.2.0 - Фільтрація чату по goalId
+/// Дата: 15.12.2025
 
 class SupabaseService {
   static SupabaseService? _instance;
@@ -531,14 +531,28 @@ class SupabaseService {
   }
 
   /// Отримати історію чату
-  Future<List<Map<String, dynamic>>> getChatHistory({int limit = 50}) async {
+  /// Якщо goalId = null, отримує загальний чат
+  /// Якщо goalId вказано, отримує чат для конкретної цілі
+  Future<List<Map<String, dynamic>>> getChatHistory({
+    int limit = 50,
+    String? goalId,
+  }) async {
     if (!isAuthenticated) return [];
 
     try {
-      final response = await client
+      var query = client
           .from('chat_messages')
           .select()
-          .eq('user_id', userId!)
+          .eq('user_id', userId!);
+
+      // Фільтруємо по goalId
+      if (goalId != null) {
+        query = query.eq('goal_id', goalId);
+      } else {
+        query = query.isFilter('goal_id', null);
+      }
+
+      final response = await query
           .order('created_at', ascending: false)
           .limit(limit);
 
