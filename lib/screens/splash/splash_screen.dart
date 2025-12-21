@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
-import 'package:anantata/config/app_constants.dart';
 
 /// Splash Screen Anantata
-/// Версія: 1.0
-/// Дата: 12.12.2025
+/// Версія: 1.1 - Тільки UI, навігація в main.dart
+/// Дата: 22.12.2025
+///
+/// Виправлено:
+/// - Видалено власну навігацію (конфлікт з AppStartup в main.dart)
+/// - Тепер це чистий UI компонент
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _setupAnimations();
-    _navigateToNext();
+    // Навігація тепер керується з main.dart -> AppStartup
   }
 
   void _setupAnimations() {
@@ -47,18 +50,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
-  }
-
-  Future<void> _navigateToNext() async {
-    await Future.delayed(AppConstants.splashDuration);
-    
-    if (!mounted) return;
-
-    // TODO: Перевірити чи користувач авторизований
-    // TODO: Перевірити чи онбординг пройдено
-    // Поки що переходимо на home
-
-    Navigator.of(context).pushReplacementNamed(AppConstants.routeHome);
   }
 
   @override
@@ -101,18 +92,25 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    'A',
-                    style: TextStyle(
-                      fontSize: 64,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                      fontFamily: 'NunitoSans',
+                padding: const EdgeInsets.all(12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Image.asset(
+                    'assets/images/logo_anantata.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Center(
+                      child: Text(
+                        'A',
+                        style: TextStyle(
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                          fontFamily: 'Bitter',
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                // TODO: Замінити на Image.asset('assets/images/logo.png')
               ),
               const SizedBox(height: 24),
               // Назва
@@ -122,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen>
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Bitter',
                 ),
               ),
               const SizedBox(height: 8),

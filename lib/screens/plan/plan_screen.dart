@@ -2,13 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/storage_service.dart';
+import 'package:anantata/screens/assessment/assessment_screen.dart';
+import 'package:anantata/screens/assessment/generation_screen.dart';
 
 /// Екран плану з 10 напрямками та 100 кроками
-/// Версія: 4.1.0 - Виправлено колір опису кроків
-/// Дата: 14.12.2025
+/// Версія: 4.4.0 - Ліміт пропущених кроків
+/// Дата: 21.12.2025
+///
+/// Виправлено:
+/// - Баг #6 - Додано заголовок з назвою цілі та цільовим доходом
+/// - Баг #8 - Додано callback onStepStatusChanged для автооновлення статистики
+/// - Допрацювання #15 - Кнопка "Пройти оцінювання" на порожній сторінці
+/// - Допрацювання #4 - Ліміт пропущених кроків (20)
 
 class PlanScreen extends StatefulWidget {
-  const PlanScreen({super.key});
+  /// Callback при зміні статусу кроку (для оновлення статистики на головній)
+  final VoidCallback? onStepStatusChanged;
+
+  const PlanScreen({
+    super.key,
+    this.onStepStatusChanged,
+  });
 
   @override
   State<PlanScreen> createState() => _PlanScreenState();
@@ -19,6 +33,9 @@ class _PlanScreenState extends State<PlanScreen> {
   CareerPlanModel? _plan;
   bool _isLoading = true;
   int? _expandedDirectionIndex;
+
+  // Допрацювання #4: Ліміт пропущених кроків
+  static const int _maxSkippedSteps = 20;
 
   @override
   void initState() {
@@ -38,17 +55,105 @@ class _PlanScreenState extends State<PlanScreen> {
   Future<void> _markStepDone(String stepId) async {
     await _storage.markStepDone(stepId);
     await _loadData();
+    // Баг #8: Викликаємо callback для оновлення статистики на головній
+    widget.onStepStatusChanged?.call();
   }
 
+  // Допрацювання #4: Перевірка ліміту перед пропуском
   Future<void> _skipStep(String stepId) async {
+    final skippedCount = _plan?.skippedStepsCount ?? 0;
+
+    // Перевіряємо ліміт
+    if (skippedCount >= _maxSkippedSteps) {
+      _showSkipLimitDialog();
+      return;
+    }
+
     await _storage.skipStep(stepId);
     await _loadData();
+    // Баг #8: Викликаємо callback для оновлення статистики на головній
+    widget.onStepStatusChanged?.call();
+  }
+
+  // Допрацювання #4: Діалог при досягненні ліміту
+  void _showSkipLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.orange[700],
+          size: 48,
+        ),
+        title: const Text('Ліміт пропусків досягнуто'),
+        content: Text(
+          'Ви вже пропустили $_maxSkippedSteps кроків.\n\n'
+              'Щоб пропустити інші, спочатку виконайте або скасуйте пропуск деяких кроків.',
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.grey[700],
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Зрозуміло'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _resetStep(String stepId) async {
     await _storage.resetStep(stepId);
     await _loadData();
+    // Баг #8: Викликаємо callback для оновлення статистики на головній
+    widget.onStepStatusChanged?.call();
   }
+
+  // Допрацювання #15: Навігація на оцінювання
+  void _navigateToAssessment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AssessmentScreen(
+          onComplete: () {},
+          onSubmit: (answers) {
+            Navigator.pop(context);
+            _navigateToGeneration(answers);
+          },
+          onBack: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _navigateToGeneration(Map<int, String> answers) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GenerationScreen(
+          answers: answers,
+          onComplete: () {
+            Navigator.pop(context);
+            _loadData();
+          },
+        ),
+      ),
+    );
+  }
+
+  // Допрацювання #4: Перевірка чи можна пропускати
+  bool get _canSkipMore {
+    final skippedCount = _plan?.skippedStepsCount ?? 0;
+    return skippedCount < _maxSkippedSteps;
+  }
+
+  // Допрацювання #4: Кількість пропущених кроків
+  int get _skippedCount => _plan?.skippedStepsCount ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +172,11 @@ class _PlanScreenState extends State<PlanScreen> {
       color: AppTheme.primaryColor,
       child: CustomScrollView(
         slivers: [
+          // Баг #6: Заголовок з назвою цілі та цільовим доходом
+          SliverToBoxAdapter(
+            child: _buildGoalHeader(),
+          ),
+
           // Шкала прогресу
           SliverToBoxAdapter(
             child: _buildProgressBar(),
@@ -118,6 +228,143 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
+  // Баг #6: Заголовок з назвою цілі та цільовим доходом
+  Widget _buildGoalHeader() {
+    final goalTitle = _plan?.goal.title ?? 'Моя ціль';
+    final targetSalary = _plan?.goal.targetSalary ?? '';
+    final matchScore = _plan?.matchScore ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryColor,
+            AppTheme.primaryColor.withOpacity(0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Іконка та мітка
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.flag,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'ВАША ЦІЛЬ',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white70,
+                  letterSpacing: 1,
+                ),
+              ),
+              const Spacer(),
+              // Match Score
+              if (matchScore > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.stars,
+                        color: Colors.amber,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$matchScore%',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Назва цілі
+          Text(
+            goalTitle,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          // Цільовий дохід
+          if (targetSalary.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.attach_money,
+                    color: Colors.greenAccent,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Цільовий дохід: $targetSalary',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Допрацювання #15: Оновлено з кнопкою оцінювання
   Widget _buildNoPlan() {
     return Center(
       child: Padding(
@@ -125,17 +372,68 @@ class _PlanScreenState extends State<PlanScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[300]),
-            const SizedBox(height: 16),
+            // Іконка
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.assignment_outlined,
+                size: 48,
+                color: AppTheme.primaryColor.withOpacity(0.5),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Заголовок
             Text(
               'План ще не створено',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(
+                fontFamily: 'Bitter',
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+
+            // Опис
             Text(
-              'Пройдіть оцінювання, щоб отримати персональний план',
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              'Пройдіть оцінювання, щоб отримати\nперсональний план з 100 кроками',
+              style: TextStyle(
+                fontFamily: 'NunitoSans',
+                fontSize: 15,
+                color: Colors.grey[500],
+                height: 1.5,
+              ),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+
+            // Допрацювання #15: Кнопка оцінювання
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _navigateToAssessment,
+                icon: const Icon(Icons.rocket_launch_outlined),
+                label: const Text('Пройти оцінювання'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontFamily: 'Akrobat',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -207,13 +505,52 @@ class _PlanScreenState extends State<PlanScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Текст прогресу
-          Text(
-            'Виконано $completed з $total кроків',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+          // Допрацювання #4: Текст прогресу з індикатором пропущених
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Виконано $completed з $total кроків',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              // Індикатор пропущених кроків
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _canSkipMore
+                      ? Colors.orange.withOpacity(0.1)
+                      : Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _canSkipMore
+                        ? Colors.orange.withOpacity(0.3)
+                        : Colors.red.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.skip_next,
+                      size: 14,
+                      color: _canSkipMore ? Colors.orange[700] : Colors.red[700],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_skippedCount/$_maxSkippedSteps',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _canSkipMore ? Colors.orange[700] : Colors.red[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -516,14 +853,14 @@ class _PlanScreenState extends State<PlanScreen> {
                 ),
                 if (step.description.isNotEmpty) ...[
                   const SizedBox(height: 5),
-                  // ✅ ВИПРАВЛЕНО: Опис тепер ЧОРНИЙ (було grey[700])
+                  // Опис - ЧОРНИЙ
                   Text(
                     step.description,
                     style: TextStyle(
                       fontSize: 14,
                       color: isDone || isSkipped
-                          ? Colors.grey[500]  // Виконані/пропущені - трохи темніше
-                          : Colors.black87,   // ✅ Активні - ЧОРНИЙ (було grey[700])
+                          ? Colors.grey[500]
+                          : Colors.black87,
                       height: 1.4,
                     ),
                     maxLines: 3,
@@ -534,16 +871,18 @@ class _PlanScreenState extends State<PlanScreen> {
             ),
           ),
 
-          // Кнопка пропустити (тільки для pending)
+          // Допрацювання #4: Кнопка пропустити (заблокована якщо ліміт)
           if (!isDone && !isSkipped)
             IconButton(
-              onPressed: () => _skipStep(step.id),
+              onPressed: _canSkipMore ? () => _skipStep(step.id) : null,
               icon: Icon(
                 Icons.skip_next,
-                color: Colors.grey[400],
+                color: _canSkipMore ? Colors.grey[400] : Colors.grey[300],
                 size: 24,
               ),
-              tooltip: 'Пропустити',
+              tooltip: _canSkipMore
+                  ? 'Пропустити'
+                  : 'Ліміт пропусків досягнуто ($_skippedCount/$_maxSkippedSteps)',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(
                 minWidth: 36,

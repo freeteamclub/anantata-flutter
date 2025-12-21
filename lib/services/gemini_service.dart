@@ -5,14 +5,20 @@ import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Gemini AI
 /// Синхронізовано з Kotlin версією
-/// Версія: 2.3.0 - Виправлено параметри моделей
-/// Дата: 13.12.2025
+/// Версія: 2.4.0 - Оновлено на Gemini 3 Flash Preview
+/// Дата: 21.12.2025
+///
+/// Допрацювання:
+/// - #17 - Оновлено модель з gemini-2.0-flash на gemini-3-flash-preview
 
 class GeminiService {
   static GeminiService? _instance;
   late GenerativeModel _chatModel;
   late GenerativeModel _assessmentModel;
   bool _isInitialized = false;
+
+  // Допрацювання #17: Оновлена назва моделі
+  static const String _modelName = 'gemini-3-flash-preview';
 
   // Singleton
   factory GeminiService() {
@@ -32,8 +38,9 @@ class GeminiService {
     }
 
     // Модель для чату (більш креативна)
+    // Допрацювання #17: Оновлено на gemini-3-flash-preview
     _chatModel = GenerativeModel(
-      model: 'gemini-2.0-flash',
+      model: _modelName,
       apiKey: apiKey,
       generationConfig: GenerationConfig(
         temperature: 0.7,
@@ -44,8 +51,9 @@ class GeminiService {
     );
 
     // Модель для оцінювання (більш детермінована)
+    // Допрацювання #17: Оновлено на gemini-3-flash-preview
     _assessmentModel = GenerativeModel(
-      model: 'gemini-2.0-flash',
+      model: _modelName,
       apiKey: apiKey,
       generationConfig: GenerationConfig(
         temperature: 0.3,
@@ -56,7 +64,7 @@ class GeminiService {
     );
 
     _isInitialized = true;
-    print('✅ GeminiService ініціалізовано');
+    print('✅ GeminiService ініціалізовано (модель: $_modelName)');
   }
 
   /// Генерація кар'єрного плану на основі відповідей
@@ -69,7 +77,7 @@ class GeminiService {
     final prompt = _buildAssessmentPrompt(answers);
 
     try {
-      print('📤 Відправляємо запит до Gemini...');
+      print('📤 Відправляємо запит до Gemini ($_modelName)...');
       final content = [Content.text(prompt)];
       final response = await _assessmentModel.generateContent(content);
 

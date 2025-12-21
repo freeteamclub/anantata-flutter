@@ -6,7 +6,7 @@ import 'package:anantata/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Сервіс для локального збереження даних
-/// Версія: 4.0.0 - Підтримка до 3 цілей
+/// Версія: 4.1.0 - Локальна історія чату для кожної цілі
 /// Дата: 15.12.2025
 
 class StorageService {
@@ -21,6 +21,7 @@ class StorageService {
   static const String _keyGoalsList = 'goals_list';
   static const String _keyPrimaryGoalId = 'primary_goal_id';
   static const String _keyAllPlans = 'all_plans'; // Зберігає всі плани
+  static const String _keyChatHistory = 'chat_history'; // 🆕 Історія чатів
 
   final Uuid _uuid = const Uuid();
   final SupabaseService _supabase = SupabaseService();
@@ -75,6 +76,92 @@ class StorageService {
     } catch (e) {
       debugPrint('❌ Помилка читання відповідей: $e');
       return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 🆕 CHAT HISTORY (локальна історія для кожної цілі)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Отримати історію чату для цілі
+  /// Якщо goalId = null, повертає пустий список (загальний чат в Supabase)
+  Future<List<Map<String, dynamic>>> getLocalChatHistory(String? goalId) async {
+    if (goalId == null) return [];
+
+    final prefs = await SharedPreferences.getInstance();
+    final allChatsJson = prefs.getString(_keyChatHistory);
+
+    if (allChatsJson == null) return [];
+
+    try {
+      final allChats = jsonDecode(allChatsJson) as Map<String, dynamic>;
+      if (allChats.containsKey(goalId)) {
+        final messages = allChats[goalId] as List<dynamic>;
+        return List<Map<String, dynamic>>.from(
+          messages.map((m) => Map<String, dynamic>.from(m as Map)),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Помилка читання історії чату: $e');
+    }
+
+    return [];
+  }
+
+  /// Зберегти повідомлення в локальну історію чату
+  Future<void> saveLocalChatMessage({
+    required String goalId,
+    required String text,
+    required bool isUser,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Отримуємо всі чати
+    Map<String, dynamic> allChats = {};
+    final allChatsJson = prefs.getString(_keyChatHistory);
+    if (allChatsJson != null) {
+      allChats = Map<String, dynamic>.from(jsonDecode(allChatsJson) as Map);
+    }
+
+    // Отримуємо або створюємо чат для цієї цілі
+    List<dynamic> messages = [];
+    if (allChats.containsKey(goalId)) {
+      messages = List<dynamic>.from(allChats[goalId] as List);
+    }
+
+    // Додаємо нове повідомлення
+    messages.add({
+      'text': text,
+      'is_user': isUser,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+
+    // Обмежуємо до 100 останніх повідомлень
+    if (messages.length > 100) {
+      messages = messages.sublist(messages.length - 100);
+    }
+
+    // Зберігаємо
+    allChats[goalId] = messages;
+    await prefs.setString(_keyChatHistory, jsonEncode(allChats));
+
+    debugPrint('💬 Повідомлення збережено для цілі $goalId');
+  }
+
+  /// Очистити історію чату для цілі
+  Future<void> clearLocalChatHistory(String goalId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final allChatsJson = prefs.getString(_keyChatHistory);
+
+    if (allChatsJson == null) return;
+
+    try {
+      final allChats = Map<String, dynamic>.from(jsonDecode(allChatsJson) as Map);
+      allChats.remove(goalId);
+      await prefs.setString(_keyChatHistory, jsonEncode(allChats));
+      debugPrint('🗑️ Історія чату очищена для цілі $goalId');
+    } catch (e) {
+      debugPrint('❌ Помилка очищення історії чату: $e');
     }
   }
 
@@ -157,6 +244,9 @@ class StorageService {
 
     // Видаляємо план
     await _deletePlanById(goalId);
+
+    // 🆕 Видаляємо історію чату
+    await clearLocalChatHistory(goalId);
 
     // Якщо це була поточна ціль, завантажуємо нову головну
     if (updatedList.primaryGoal != null) {
@@ -508,6 +598,7 @@ class StorageService {
     await prefs.remove(_keyMatchScore);
     await prefs.remove(_keyGapAnalysis);
     await prefs.remove(_keyAssessmentComplete);
+    await prefs.remove(_keyChatHistory); // 🆕 Очищаємо історію чатів
     debugPrint('🗑️ Всі цілі та плани очищено');
   }
 

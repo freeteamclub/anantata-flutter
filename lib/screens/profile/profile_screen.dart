@@ -6,8 +6,11 @@ import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Екран профілю користувача
-/// Версія: 2.1.0 - Fixed method name
-/// Дата: 14.12.2025
+/// Версія: 2.2.0 - Оновлено текст очищення даних
+/// Дата: 21.12.2025
+///
+/// Допрацювання:
+/// - #3 - Текст "Видалити ціль, план та прогрес"
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -107,13 +110,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Допрацювання #3: Оновлено текст діалогу
   Future<void> _clearData() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Очистити дані?'),
+        // Допрацювання #3: Додано "вашу ціль"
         content: const Text(
-          'Це видалить ваш план та весь прогрес. Цю дію неможливо скасувати.',
+          'Це видалить вашу ціль, план та весь прогрес. Цю дію неможливо скасувати.',
         ),
         actions: [
           TextButton(
@@ -138,7 +143,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _progressPercent = 0;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Дані очищено')),
+          // Допрацювання #3: Оновлено текст підтвердження
+          const SnackBar(content: Text('Ціль, план та прогрес видалено')),
         );
       }
     }
@@ -208,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -333,10 +339,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withOpacity(0.1),
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+              color: AppTheme.primaryColor.withOpacity(0.3),
               width: 2,
             ),
           ),
@@ -434,7 +440,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -522,7 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -553,7 +559,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSettingsItem(
             icon: Icons.delete_outline,
             title: 'Очистити дані',
-            subtitle: 'Видалити план та прогрес',
+            // Допрацювання #3: Оновлено subtitle
+            subtitle: 'Видалити ціль, план та прогрес',
             onTap: _clearData,
             isDestructive: true,
           ),

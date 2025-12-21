@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/gemini_service.dart';
@@ -7,14 +8,18 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 1.2.0 - Окремі чати для кожної цілі + підказки завжди видимі
-/// Дата: 15.12.2025
+/// Версія: 1.6.0 - Форматування відповідей AI
+/// Дата: 21.12.2025
+///
+/// Виправлено:
+/// - Баг #3 - Швидкі дії в 2 рядки + спойлер
+/// - Баг #4 - Кнопка "Назад" завжди показується
+/// - Баг #9 - Можливість виділити та скопіювати текст
+/// - Баг #12b - Коректна помилка при офлайн режимі
+/// - Допрацювання #14 - Форматування відповідей AI (жирний, курсив, списки)
 
 class ChatScreen extends StatefulWidget {
-  /// ID цілі для контекстного чату. Якщо null - загальний чат
   final String? goalId;
-
-  /// Назва цілі для відображення в AppBar
   final String? goalTitle;
 
   const ChatScreen({
@@ -38,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
   CareerPlanModel? _plan;
   bool _isLoading = false;
   bool _isTyping = false;
+  bool _isQuickActionsExpanded = true;
 
   @override
   void initState() {
@@ -52,9 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  /// Завантажити історію чату з Supabase
   Future<void> _loadChatHistory() async {
-    // Завантажуємо план для конкретної цілі або поточний
     CareerPlanModel? plan;
     if (widget.goalId != null) {
       plan = await _storage.getPlanForGoal(widget.goalId!);
@@ -65,13 +69,10 @@ class _ChatScreenState extends State<ChatScreen> {
       _plan = plan;
     });
 
-    // Якщо авторизований - завантажуємо історію з Supabase
     if (_supabase.isAuthenticated) {
       try {
         final history = await _supabase.getChatHistory(
           limit: 50,
-          // НЕ фільтруємо по goalId - всі повідомлення в загальному чаті
-          // TODO: Синхронізувати goals з Supabase для підтримки окремих чатів
           goalId: null,
         );
         if (history.isNotEmpty) {
@@ -84,27 +85,23 @@ class _ChatScreenState extends State<ChatScreen> {
             )));
           });
           _scrollToBottom();
-          return; // Не показуємо привітання якщо є історія
+          return;
         }
       } catch (e) {
         debugPrint('❌ Помилка завантаження історії чату: $e');
       }
     }
 
-    // Привітальне повідомлення (якщо немає історії)
     await Future.delayed(const Duration(milliseconds: 500));
     _addBotMessage(_getGreetingMessage(), saveToCloud: false);
   }
 
-  /// Зберегти повідомлення в Supabase
   Future<void> _saveToCloud(String text, bool isUser) async {
     if (_supabase.isAuthenticated) {
       try {
         await _supabase.saveChatMessage(
           text: text,
           isUser: isUser,
-          // НЕ передаємо goalId - він не існує в Supabase (foreign key constraint)
-          // TODO: Синхронізувати goals з Supabase для підтримки окремих чатів
           goalId: null,
         );
       } catch (e) {
@@ -114,29 +111,27 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   String _getGreetingMessage() {
-    // Якщо це чат для конкретної цілі
     if (widget.goalId != null && _plan != null) {
       final progress = _plan!.overallProgress.toStringAsFixed(0);
       final goal = _plan!.goal.title;
       final nextStep = _plan!.nextStep;
 
-      String greeting = 'Привіт! 👋 Я ваш AI коуч для цієї цілі.\n\n';
-      greeting += '🎯 Ціль: $goal\n';
-      greeting += '📊 Прогрес: $progress%\n';
+      String greeting = 'Привіт! 👋 Давайте обговоримо вашу ціль.\n\n';
+      greeting += '🎯 **Ціль:** $goal\n';
+      greeting += '📊 **Прогрес:** $progress%\n';
 
       if (nextStep != null) {
-        greeting += '📌 Наступний крок: ${nextStep.title}\n';
+        greeting += '📌 **Наступний крок:** ${nextStep.title}\n';
       }
 
-      greeting += '\nЗапитуйте будь-що про цю ціль!';
+      greeting += '\nЗапитуйте будь-що!';
       return greeting;
     }
 
-    // Загальний чат
     if (_plan == null) {
-      return 'Привіт! 👋 Я ваш AI кар\'єрний коуч.\n\n'
+      return 'Привіт! 👋 Я ваш **AI кар\'єрний коуч**.\n\n'
           'Схоже, у вас ще немає плану розвитку. '
-          'Пройдіть оцінювання, щоб я міг надавати персоналізовані поради!\n\n'
+          'Пройдіть оцінювання, щоб я міг надавати *персоналізовані* поради!\n\n'
           'Чим можу допомогти?';
     }
 
@@ -144,12 +139,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final goal = _plan!.goal.title;
     final nextStep = _plan!.nextStep;
 
-    String greeting = 'Привіт! 👋 Я ваш AI кар\'єрний коуч.\n\n';
-    greeting += '🎯 Ваша ціль: $goal\n';
-    greeting += '📊 Прогрес: $progress%\n';
+    String greeting = 'Привіт! 👋 Я ваш **AI кар\'єрний коуч**.\n\n';
+    greeting += '🎯 **Ваша ціль:** $goal\n';
+    greeting += '📊 **Прогрес:** $progress%\n';
 
     if (nextStep != null) {
-      greeting += '📌 Наступний крок: ${nextStep.title}\n';
+      greeting += '📌 **Наступний крок:** ${nextStep.title}\n';
     }
 
     greeting += '\nЧим можу допомогти сьогодні?';
@@ -167,7 +162,6 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    // Зберігаємо в Supabase
     if (saveToCloud) {
       _saveToCloud(text, false);
     }
@@ -183,7 +177,6 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    // Зберігаємо в Supabase
     _saveToCloud(text, true);
   }
 
@@ -199,19 +192,28 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  bool _isNetworkError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('socketexception') ||
+        errorString.contains('clientexception') ||
+        errorString.contains('failed host lookup') ||
+        errorString.contains('no address associated') ||
+        errorString.contains('network is unreachable') ||
+        errorString.contains('connection refused') ||
+        errorString.contains('connection timed out') ||
+        errorString.contains('no internet');
+  }
+
   Future<void> _sendMessage([String? quickAction]) async {
     final text = quickAction ?? _messageController.text.trim();
     if (text.isEmpty) return;
 
-    // Очищаємо поле вводу
     if (quickAction == null) {
       _messageController.clear();
     }
 
-    // Додаємо повідомлення користувача
     _addUserMessage(text);
 
-    // Показуємо індикатор друку
     setState(() {
       _isTyping = true;
     });
@@ -220,7 +222,6 @@ class _ChatScreenState extends State<ChatScreen> {
       String response;
 
       if (_plan != null) {
-        // Відправляємо з контекстом плану
         final context = _gemini.buildAIContext(
           plan: _plan!,
           chatHistory: _messages
@@ -236,7 +237,6 @@ class _ChatScreenState extends State<ChatScreen> {
           context: context,
         );
       } else {
-        // Простий чат без контексту
         response = await _gemini.chat(text);
       }
 
@@ -250,10 +250,27 @@ class _ChatScreenState extends State<ChatScreen> {
         _isTyping = false;
       });
 
-      _addBotMessage(
-        'Вибачте, виникла помилка. Спробуйте ще раз пізніше. 🙏',
-      );
+      String errorMessage;
+      if (_isNetworkError(e)) {
+        errorMessage = '📵 **Немає з\'єднання з інтернетом.**\n\n'
+            'Перевірте підключення до мережі та спробуйте ще раз.';
+      } else {
+        errorMessage = 'Виникла помилка. Спробуйте ще раз. 🙏';
+      }
+
+      _addBotMessage(errorMessage);
     }
+  }
+
+  void _copyMessageText(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Текст скопійовано'),
+        duration: Duration(seconds: 2),
+        backgroundColor: AppTheme.primaryColor,
+      ),
+    );
   }
 
   @override
@@ -263,18 +280,11 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          // Повідомлення
           Expanded(
             child: _buildMessagesList(),
           ),
-
-          // ✅ Швидкі дії показуються ЗАВЖДИ
           _buildQuickActions(),
-
-          // Індикатор друку
           if (_isTyping) _buildTypingIndicator(),
-
-          // Поле вводу
           _buildInputArea(),
         ],
       ),
@@ -282,23 +292,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    // Визначаємо заголовок
-    final title = widget.goalId != null
-        ? (widget.goalTitle ?? 'Чат про ціль')
-        : 'AI Коуч';
-
-    final subtitle = widget.goalId != null
-        ? 'Контекстний чат'
-        : 'Онлайн';
+    final hasGoalContext = widget.goalId != null;
 
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
-      leading: widget.goalId != null
-          ? IconButton(
+      leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
-      )
-          : null,
+      ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -306,11 +307,11 @@ class _ChatScreenState extends State<ChatScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              widget.goalId != null ? Icons.flag : Icons.psychology,
+            child: const Icon(
+              Icons.psychology,
               color: Colors.white,
               size: 22,
             ),
@@ -320,9 +321,9 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
+                const Text(
+                  'AI Коуч',
+                  style: TextStyle(
                     fontFamily: 'Bitter',
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -331,7 +332,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  subtitle,
+                  hasGoalContext ? 'Обговорення цілі' : 'Онлайн',
                   style: const TextStyle(
                     fontFamily: 'NunitoSans',
                     fontSize: 12,
@@ -378,52 +379,104 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
-        ),
-        margin: EdgeInsets.only(
-          bottom: 12,
-          left: isUser ? 40 : 0,
-          right: isUser ? 0 : 40,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isUser ? AppTheme.primaryColor : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
+      child: GestureDetector(
+        onLongPress: () => _showMessageOptions(message),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+          margin: EdgeInsets.only(
+            bottom: 12,
+            left: isUser ? 40 : 0,
+            right: isUser ? 0 : 40,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isUser ? AppTheme.primaryColor : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isUser ? 16 : 4),
+              bottomRight: Radius.circular(isUser ? 4 : 16),
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Допрацювання #14: Форматований текст для AI, простий для користувача
+              isUser
+                  ? SelectableText(
+                message.text,
+                style: const TextStyle(
+                  fontFamily: 'NunitoSans',
+                  fontSize: 15,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              )
+                  : _buildFormattedText(message.text),
+              const SizedBox(height: 4),
+              Text(
+                _formatTime(message.timestamp),
+                style: TextStyle(
+                  fontFamily: 'NunitoSans',
+                  fontSize: 11,
+                  color: isUser ? Colors.white60 : Colors.grey[400],
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  // Допрацювання #14: Побудова форматованого тексту
+  Widget _buildFormattedText(String text) {
+    final spans = FormattedTextParser.parse(text, AppTheme.textPrimary);
+
+    return SelectableText.rich(
+      TextSpan(
+        children: spans,
+        style: const TextStyle(
+          fontFamily: 'NunitoSans',
+          fontSize: 15,
+          color: AppTheme.textPrimary,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+
+  void _showMessageOptions(ChatMessage message) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                fontFamily: 'NunitoSans',
-                fontSize: 15,
-                color: isUser ? Colors.white : AppTheme.textPrimary,
-                height: 1.4,
-              ),
+            ListTile(
+              leading: const Icon(Icons.copy, color: AppTheme.primaryColor),
+              title: const Text('Копіювати текст'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyMessageText(message.text);
+              },
             ),
-            const SizedBox(height: 4),
-            Text(
-              _formatTime(message.timestamp),
-              style: TextStyle(
-                fontFamily: 'NunitoSans',
-                fontSize: 11,
-                color: isUser ? Colors.white60 : Colors.grey[400],
-              ),
+            ListTile(
+              leading: Icon(Icons.close, color: Colors.grey[600]),
+              title: const Text('Скасувати'),
+              onTap: () => Navigator.pop(context),
             ),
           ],
         ),
@@ -432,19 +485,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildQuickActions() {
-    // Різні підказки для контекстного чату
-    final quickActions = widget.goalId != null
-        ? [
+    final quickActionsRow1 = [
       QuickAction(icon: Icons.arrow_forward, text: 'Що робити далі?'),
-      QuickAction(icon: Icons.help_outline, text: 'Поясни поточний крок'),
-      QuickAction(icon: Icons.trending_up, text: 'Як прискорити прогрес?'),
-      QuickAction(icon: Icons.lightbulb_outline, text: 'Поради для цієї цілі'),
-    ]
-        : [
-      QuickAction(icon: Icons.arrow_forward, text: 'Що робити далі?'),
-      QuickAction(icon: Icons.help_outline, text: 'Поясни поточний крок'),
-      QuickAction(icon: Icons.emoji_emotions, text: 'Мотивація'),
       QuickAction(icon: Icons.lightbulb_outline, text: 'Поради'),
+    ];
+
+    final quickActionsRow2 = [
+      QuickAction(icon: Icons.help_outline, text: 'Поясни крок'),
+      QuickAction(icon: Icons.emoji_emotions, text: 'Мотивація'),
     ];
 
     return Container(
@@ -452,41 +500,121 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Швидкі дії',
-            style: TextStyle(
-              fontFamily: 'NunitoSans',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isQuickActionsExpanded = !_isQuickActionsExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                Text(
+                  'Швидкі дії',
+                  style: TextStyle(
+                    fontFamily: 'NunitoSans',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _isQuickActionsExpanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  size: 18,
+                  color: Colors.grey[600],
+                ),
+                const Spacer(),
+                Text(
+                  _isQuickActionsExpanded ? 'Згорнути' : 'Розгорнути',
+                  style: TextStyle(
+                    fontFamily: 'NunitoSans',
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: quickActions.map((action) {
-              return ActionChip(
-                avatar: Icon(
-                  action.icon,
-                  size: 18,
-                  color: AppTheme.primaryColor,
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState: _isQuickActionsExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Column(
+              children: [
+                const SizedBox(height: 8),
+                Row(
+                  children: quickActionsRow1.map((action) {
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: action == quickActionsRow1.first ? 4 : 0,
+                          left: action == quickActionsRow1.last ? 4 : 0,
+                        ),
+                        child: _buildQuickActionChip(action),
+                      ),
+                    );
+                  }).toList(),
                 ),
-                label: Text(
+                const SizedBox(height: 8),
+                Row(
+                  children: quickActionsRow2.map((action) {
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: action == quickActionsRow2.first ? 4 : 0,
+                          left: action == quickActionsRow2.last ? 4 : 0,
+                        ),
+                        child: _buildQuickActionChip(action),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            secondChild: const SizedBox(height: 0),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionChip(QuickAction action) {
+    return Material(
+      color: AppTheme.primaryColor.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => _sendMessage(action.text),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                action.icon,
+                size: 16,
+                color: AppTheme.primaryColor,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
                   action.text,
                   style: const TextStyle(
                     fontFamily: 'NunitoSans',
-                    fontSize: 13,
+                    fontSize: 12,
                     color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                side: BorderSide.none,
-                onPressed: () => _sendMessage(action.text),
-              );
-            }).toList(),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -502,7 +630,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -540,7 +668,7 @@ class _ChatScreenState extends State<ChatScreen> {
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3 + (value * 0.5)),
+            color: AppTheme.primaryColor.withOpacity(0.3 + (value * 0.5)),
             shape: BoxShape.circle,
           ),
         );
@@ -560,7 +688,7 @@ class _ChatScreenState extends State<ChatScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -568,7 +696,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
-          // Текстове поле
           Expanded(
             child: TextField(
               controller: _messageController,
@@ -610,10 +737,7 @@ class _ChatScreenState extends State<ChatScreen> {
               onSubmitted: (_) => _sendMessage(),
             ),
           ),
-
           const SizedBox(width: 12),
-
-          // Кнопка відправки
           Container(
             width: 48,
             height: 48,
@@ -698,4 +822,125 @@ class QuickAction {
   final String text;
 
   QuickAction({required this.icon, required this.text});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Допрацювання #14: ПАРСЕР ФОРМАТОВАНОГО ТЕКСТУ
+// ═══════════════════════════════════════════════════════════════
+
+class FormattedTextParser {
+  /// Парсить текст з Markdown-подібним форматуванням
+  /// Підтримує:
+  /// - **жирний текст**
+  /// - *курсив*
+  /// - Списки (- або • на початку рядка)
+  /// - Нумеровані списки (1. 2. 3.)
+  /// - Емодзі (залишаються як є)
+  static List<TextSpan> parse(String text, Color baseColor) {
+    final List<TextSpan> spans = [];
+    final lines = text.split('\n');
+
+    for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      final line = lines[lineIndex];
+
+      // Додаємо новий рядок перед кожним рядком крім першого
+      if (lineIndex > 0) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+
+      // Перевіряємо чи це елемент списку
+      final listMatch = RegExp(r'^(\s*)([-•●]\s+|\d+\.\s+)(.*)$').firstMatch(line);
+
+      if (listMatch != null) {
+        // Це елемент списку
+        final indent = listMatch.group(1) ?? '';
+        final bullet = listMatch.group(2) ?? '';
+        final content = listMatch.group(3) ?? '';
+
+        // Додаємо відступ
+        if (indent.isNotEmpty) {
+          spans.add(TextSpan(text: indent));
+        }
+
+        // Додаємо маркер списку з кольором
+        spans.add(TextSpan(
+          text: bullet,
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ));
+
+        // Парсимо вміст елемента списку
+        spans.addAll(_parseInlineFormatting(content, baseColor));
+      } else {
+        // Звичайний рядок - парсимо inline форматування
+        spans.addAll(_parseInlineFormatting(line, baseColor));
+      }
+    }
+
+    return spans;
+  }
+
+  /// Парсить inline форматування (жирний, курсив)
+  static List<TextSpan> _parseInlineFormatting(String text, Color baseColor) {
+    final List<TextSpan> spans = [];
+
+    // Regex для пошуку форматування
+    // **жирний** або *курсив*
+    final regex = RegExp(r'(\*\*(.+?)\*\*)|(\*(.+?)\*)');
+
+    int lastEnd = 0;
+
+    for (final match in regex.allMatches(text)) {
+      // Додаємо текст до match
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+          style: TextStyle(color: baseColor),
+        ));
+      }
+
+      // Визначаємо тип форматування
+      if (match.group(2) != null) {
+        // **жирний**
+        spans.add(TextSpan(
+          text: match.group(2),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: baseColor,
+          ),
+        ));
+      } else if (match.group(4) != null) {
+        // *курсив*
+        spans.add(TextSpan(
+          text: match.group(4),
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: baseColor,
+          ),
+        ));
+      }
+
+      lastEnd = match.end;
+    }
+
+    // Додаємо залишок тексту
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: TextStyle(color: baseColor),
+      ));
+    }
+
+    // Якщо spans пустий, додаємо весь текст
+    if (spans.isEmpty) {
+      spans.add(TextSpan(
+        text: text,
+        style: TextStyle(color: baseColor),
+      ));
+    }
+
+    return spans;
+  }
 }

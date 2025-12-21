@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран авторизації
-/// Версія: 1.1.0 - Fixed
-/// Дата: 14.12.2025
+/// Версія: 1.3.0 - Клікабельне посилання на Політику конфіденційності
+/// Дата: 21.12.2025
+///
+/// Виправлено:
+/// - Баг #1 - Логотип більше не обрізається на великих екранах
+/// - Допрацювання #1 - Посилання на Політику конфіденційності
 
 class AuthScreen extends StatefulWidget {
   final VoidCallback onAuthSuccess;
@@ -22,6 +28,9 @@ class _AuthScreenState extends State<AuthScreen> {
   final SupabaseService _supabase = SupabaseService();
   bool _isLoading = false;
   String? _errorMessage;
+
+  // Допрацювання #1: URL Політики конфіденційності
+  static const String _privacyPolicyUrl = 'https://privacy.anantata.ai/';
 
   @override
   void initState() {
@@ -69,6 +78,27 @@ class _AuthScreenState extends State<AuthScreen> {
     widget.onAuthSuccess();
   }
 
+  // Допрацювання #1: Відкрити Політику конфіденційності
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse(_privacyPolicyUrl);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Не вдалося відкрити посилання'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Помилка відкриття URL: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +111,7 @@ class _AuthScreenState extends State<AuthScreen> {
               const Spacer(flex: 2),
 
               // Логотип
-              _buildLogo(),
+              _buildLogo(context),
               const SizedBox(height: 32),
 
               // Заголовок
@@ -103,7 +133,7 @@ class _AuthScreenState extends State<AuthScreen> {
               _buildSkipButton(),
               const SizedBox(height: 24),
 
-              // Політика конфіденційності
+              // Політика конфіденційності (клікабельна)
               _buildPrivacyNote(),
               const Spacer(),
             ],
@@ -113,10 +143,15 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildLogo() {
+  // Баг #1: Виправлено відображення логотипу
+  Widget _buildLogo(BuildContext context) {
+    // Адаптивний розмір логотипу для різних екранів
+    final screenWidth = MediaQuery.of(context).size.width;
+    final logoSize = screenWidth < 360 ? 100.0 : 120.0;
+
     return Container(
-      width: 120,
-      height: 120,
+      width: logoSize,
+      height: logoSize,
       decoration: BoxDecoration(
         color: AppTheme.primaryColor,
         borderRadius: BorderRadius.circular(30),
@@ -128,15 +163,20 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ],
       ),
+      // Баг #1: Додано padding щоб логотип не торкався країв
+      padding: const EdgeInsets.all(12),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(18),
         child: Image.asset(
           'assets/images/logo_anantata.png',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => const Icon(
-            Icons.auto_awesome,
-            size: 60,
-            color: Colors.white,
+          // Баг #1: Змінено з BoxFit.cover на BoxFit.contain
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => const Center(
+            child: Icon(
+              Icons.auto_awesome,
+              size: 48,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -272,15 +312,39 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  // Допрацювання #1: Клікабельне посилання на Політику конфіденційності
   Widget _buildPrivacyNote() {
-    return Text(
-      'Входячи, ви погоджуєтеся з Політикою конфіденційності\nта Умовами використання',
+    return RichText(
       textAlign: TextAlign.center,
-      style: TextStyle(
-        fontFamily: 'NunitoSans',
-        fontSize: 12,
-        color: Colors.grey[500],
-        height: 1.4,
+      text: TextSpan(
+        style: TextStyle(
+          fontFamily: 'NunitoSans',
+          fontSize: 12,
+          color: Colors.grey[500],
+          height: 1.4,
+        ),
+        children: [
+          const TextSpan(text: 'Входячи, ви погоджуєтеся з '),
+          TextSpan(
+            text: 'Політикою конфіденційності',
+            style: TextStyle(
+              color: AppTheme.primaryColor,
+              decoration: TextDecoration.underline,
+              fontWeight: FontWeight.w500,
+            ),
+            recognizer: TapGestureRecognizer()..onTap = _openPrivacyPolicy,
+          ),
+          const TextSpan(text: '\nта '),
+          TextSpan(
+            text: 'Умовами використання',
+            style: TextStyle(
+              color: AppTheme.primaryColor,
+              decoration: TextDecoration.underline,
+              fontWeight: FontWeight.w500,
+            ),
+            recognizer: TapGestureRecognizer()..onTap = _openPrivacyPolicy,
+          ),
+        ],
       ),
     );
   }

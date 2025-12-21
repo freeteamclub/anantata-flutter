@@ -1,7 +1,7 @@
 name: anantata
 description: "Anantata Career Coach - AI-powered career development"
 publish_to: 'none'
-version: 1.0.0+3
+version: 2.0.0+20
 
 environment:
   sdk: ^3.10.3
@@ -16,6 +16,9 @@ dependencies:
   flutter_svg: ^2.0.10+1
   intl: ^0.19.0
   http: ^1.2.0
+
+  # URL Launcher
+  url_launcher: ^6.2.4
 
   # Local Storage
   shared_preferences: ^2.2.2
@@ -53,9 +56,6 @@ flutter:
     - .env
 
   fonts:
-    # ═══════════════════════════════════════
-    # BITTER - Заголовки (Google Fonts)
-    # ═══════════════════════════════════════
     - family: Bitter
       fonts:
         - asset: assets/font/Bitter-Regular.ttf
@@ -64,17 +64,11 @@ flutter:
         - asset: assets/font/Bitter-Bold.ttf
           weight: 700
 
-    # ═══════════════════════════════════════
-    # AKROBAT - Акценти, кнопки, бренд
-    # ═══════════════════════════════════════
     - family: Akrobat
       fonts:
         - asset: assets/font/Akrobat Black 900.otf
           weight: 900
 
-    # ═══════════════════════════════════════
-    # NUNITO SANS - Основний текст (існуючий)
-    # ═══════════════════════════════════════
     - family: NunitoSans
       fonts:
         - asset: assets/font/nunitosansregular.ttf

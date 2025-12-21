@@ -12,11 +12,13 @@ import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/goal/goals_list_screen.dart';
 
-/// Головний екран додатку v4.3
-/// + Виправлено клік на "Ваш прогрес" → PlanScreen
-/// + Зелена шкала прогресу
-/// Версія: 4.3
-/// Дата: 15.12.2025
+/// Головний екран додатку v4.4
+/// + Автооновлення статистики при поверненні на головну
+/// Версія: 4.4
+/// Дата: 21.12.2025
+///
+/// Виправлено:
+/// - Баг #8 - Статистика оновлюється автоматично при переході на головну
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,8 +27,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  int _previousIndex = 0; // Баг #8: Зберігаємо попередній таб
   final StorageService _storage = StorageService();
   final SupabaseService _supabase = SupabaseService();
   final SyncService _sync = SyncService();
@@ -43,7 +46,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Баг #8: Слухаємо зміни життєвого циклу додатку
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Баг #8: Оновлюємо дані коли додаток повертається на передній план
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _currentIndex == 0) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -205,7 +224,10 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return _buildHomeContent();
       case 1:
-        return const PlanScreen();
+      // Баг #8: PlanScreen з callback для оновлення даних
+        return PlanScreen(
+          onStepStatusChanged: _onPlanDataChanged,
+        );
       case 2:
         return const ChatScreen();
       case 3:
@@ -213,6 +235,18 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return _buildHomeContent();
     }
+  }
+
+  // Баг #8: Callback коли дані плану змінились
+  void _onPlanDataChanged() {
+    // Оновлюємо локальну копію плану
+    _storage.getCareerPlan().then((plan) {
+      if (mounted) {
+        setState(() {
+          _plan = plan;
+        });
+      }
+    });
   }
 
   Widget _buildHomeContent() {
@@ -291,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -428,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1.5),
+          border: Border.all(color: Colors.amber.withOpacity(0.5), width: 1.5),
         ),
         child: Row(
           children: [
@@ -436,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
+                color: Colors.amber.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.folder, color: Colors.amber, size: 28),
@@ -491,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [AppTheme.primaryColor, AppTheme.primaryColor.withValues(alpha: 0.8)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.8)], begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -499,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.psychology, color: Colors.white, size: 28),
             ),
             const SizedBox(width: 16),
@@ -509,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text('Потрібна допомога?', style: TextStyle(fontFamily: 'Bitter', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('Запитайте AI коуча про ваш план', style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13, color: Colors.white.withValues(alpha: 0.9))),
+                  Text('Запитайте AI коуча про ваш план', style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13, color: Colors.white.withOpacity(0.9))),
                 ],
               ),
             ),
@@ -520,15 +554,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Баг #8: Оновлюємо дані при переході на головну
   void _navigateToTab(int index) {
+    _previousIndex = _currentIndex;
     setState(() => _currentIndex = index);
+
+    // Якщо переходимо на головну з іншого табу - оновлюємо дані
+    if (index == 0 && _previousIndex != 0) {
+      _loadData();
+    }
   }
 
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         child: Padding(
@@ -554,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: isSelected ? BoxDecoration(color: AppTheme.primaryColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)) : null,
+        decoration: isSelected ? BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)) : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

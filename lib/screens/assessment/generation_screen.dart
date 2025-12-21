@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/gemini_service.dart';
@@ -7,8 +8,11 @@ import 'package:anantata/screens/goal/goals_list_screen.dart';
 
 /// Екран генерації кар'єрного плану
 /// Показує анімацію та результати генерації
-/// Версія: 1.1.0 - Перехід на goals_list після генерації
-/// Дата: 15.12.2025
+/// Версія: 1.2.0 - Плавний прогрес під час генерації
+/// Дата: 21.12.2025
+///
+/// Виправлено:
+/// - Баг #12a - Прогрес-бар більше не зависає на 40%
 
 class GenerationScreen extends StatefulWidget {
   final Map<int, String> answers;
@@ -49,6 +53,9 @@ class _GenerationScreenState extends State<GenerationScreen>
   late AnimationController _progressController;
   late Animation<double> _pulseAnimation;
 
+  // Баг #12a: Timer для симуляції прогресу
+  Timer? _progressTimer;
+
   @override
   void initState() {
     super.initState();
@@ -78,7 +85,35 @@ class _GenerationScreenState extends State<GenerationScreen>
   void dispose() {
     _pulseController.dispose();
     _progressController.dispose();
+    _stopProgressSimulation(); // Баг #12a: Зупиняємо timer
     super.dispose();
+  }
+
+  // Баг #12a: Запускаємо симуляцію прогресу під час очікування Gemini
+  void _startProgressSimulation() {
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
+      if (_progress < 0.74 && mounted) {
+        setState(() {
+          // Плавно збільшуємо прогрес
+          _progress += 0.015; // ~1.5% кожні 400мс
+
+          // Змінюємо повідомлення на різних етапах
+          if (_progress >= 0.45 && _progress < 0.55) {
+            _currentMessage = 'Аналізуємо кар\'єрний потенціал...';
+          } else if (_progress >= 0.55 && _progress < 0.65) {
+            _currentMessage = 'Створюємо 10 напрямків розвитку...';
+          } else if (_progress >= 0.65) {
+            _currentMessage = 'Формуємо 100 конкретних кроків...';
+          }
+        });
+      }
+    });
+  }
+
+  // Баг #12a: Зупиняємо симуляцію прогресу
+  void _stopProgressSimulation() {
+    _progressTimer?.cancel();
+    _progressTimer = null;
   }
 
   Future<void> _startGeneration() async {
@@ -103,6 +138,7 @@ class _GenerationScreenState extends State<GenerationScreen>
         'Оцінюємо кар\'єрний потенціал...',
         0.3,
       );
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Етап 2: Генерація (30-80%)
       await _updateState(
@@ -114,22 +150,22 @@ class _GenerationScreenState extends State<GenerationScreen>
       // Зберігаємо відповіді
       await _storage.saveAssessmentAnswers(widget.answers);
 
-      // Генеруємо план через Gemini
+      // Баг #12a: Запускаємо симуляцію прогресу під час очікування
+      _startProgressSimulation();
+
+      // Генеруємо план через Gemini (може тривати 10-30 секунд)
       final generatedPlan = await _gemini.generateCareerPlan(widget.answers);
 
-      await _updateState(
-        GenerationState.generating,
-        'Створюємо 10 напрямків розвитку...',
-        0.6,
-      );
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Баг #12a: Зупиняємо симуляцію після отримання відповіді
+      _stopProgressSimulation();
 
+      // Продовжуємо з 75%
       await _updateState(
         GenerationState.generating,
-        'Формуємо 100 конкретних кроків...',
+        'Фіналізуємо план...',
         0.75,
       );
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Етап 3: Збереження (80-100%)
       await _updateState(
@@ -166,6 +202,7 @@ class _GenerationScreenState extends State<GenerationScreen>
 
     } catch (e) {
       print('❌ Помилка генерації: $e');
+      _stopProgressSimulation(); // Баг #12a: Зупиняємо timer при помилці
       setState(() {
         _state = GenerationState.error;
         _errorMessage = 'Не вдалося згенерувати план. Спробуйте ще раз.';
@@ -179,11 +216,13 @@ class _GenerationScreenState extends State<GenerationScreen>
       String message,
       double progress,
       ) async {
-    setState(() {
-      _state = state;
-      _currentMessage = message;
-      _progress = progress;
-    });
+    if (mounted) {
+      setState(() {
+        _state = state;
+        _currentMessage = message;
+        _progress = progress;
+      });
+    }
   }
 
   void _retryGeneration() {
@@ -244,7 +283,7 @@ class _GenerationScreenState extends State<GenerationScreen>
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -325,7 +364,7 @@ class _GenerationScreenState extends State<GenerationScreen>
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
+              color: Colors.green.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -431,7 +470,7 @@ class _GenerationScreenState extends State<GenerationScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -492,10 +531,10 @@ class _GenerationScreenState extends State<GenerationScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+        color: AppTheme.primaryColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+          color: AppTheme.primaryColor.withOpacity(0.2),
         ),
       ),
       child: Column(
@@ -541,7 +580,7 @@ class _GenerationScreenState extends State<GenerationScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -626,7 +665,7 @@ class _GenerationScreenState extends State<GenerationScreen>
           width: 100,
           height: 100,
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.1),
+            color: Colors.red.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(
