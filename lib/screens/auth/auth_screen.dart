@@ -5,10 +5,11 @@ import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран авторизації
-/// Версія: 1.3.0 - Клікабельне посилання на Політику конфіденційності
-/// Дата: 21.12.2025
+/// Версія: 1.4.0 - Виправлено deprecated withOpacity
+/// Дата: 24.12.2025
 ///
 /// Виправлено:
+/// - P3 #2 - Замінено withOpacity на withValues(alpha:) для Web сумісності
 /// - Баг #1 - Логотип більше не обрізається на великих екранах
 /// - Допрацювання #1 - Посилання на Політику конфіденційності
 
@@ -157,7 +158,8 @@ class _AuthScreenState extends State<AuthScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            // P3 #2: Виправлено withOpacity → withValues
+            color: AppTheme.primaryColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

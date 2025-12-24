@@ -8,10 +8,12 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 1.8.0 - Покращено обробку офлайн помилок
-/// Дата: 23.12.2025
+/// Версія: 1.9.0 - UI покращення
+/// Дата: 24.12.2025
 ///
 /// Виправлено:
+/// - P2 #40 - Іконка очищення чату → смітничок (delete_outline)
+/// - P3 #30 - "Швидкі дії" вирівняно з повідомленнями чату
 /// - Баг #3 - Офлайн помилка до оцінювання тепер показує user-friendly текст
 /// - Баг #5 - Кнопка "Назад" перевіряє canPop, не показує чорний екран
 /// - Баг #4 - Кнопка "Назад" завжди показується
@@ -386,7 +388,7 @@ class _ChatScreenState extends State<ChatScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
@@ -424,9 +426,10 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       actions: [
+        // P2 #40: Змінено іконку на смітничок
         IconButton(
           onPressed: _clearChat,
-          icon: const Icon(Icons.refresh, color: Colors.white),
+          icon: const Icon(Icons.delete_outline, color: Colors.white),
           tooltip: 'Очистити чат',
         ),
       ],
@@ -480,7 +483,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               ),
@@ -563,22 +566,25 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // P3 #30: Вирівняно з повідомленнями чату (padding 16)
   Widget _buildQuickActions() {
     final quickActionsRow1 = [
       QuickAction(icon: Icons.arrow_forward, text: 'Що робити далі?'),
-      QuickAction(icon: Icons.lightbulb_outline, text: 'Поради'),
+      QuickAction(icon: Icons.help_outline, text: 'Поясни поточний крок'),
     ];
 
     final quickActionsRow2 = [
-      QuickAction(icon: Icons.help_outline, text: 'Поясни крок'),
       QuickAction(icon: Icons.emoji_emotions, text: 'Мотивація'),
+      QuickAction(icon: Icons.lightbulb_outline, text: 'Поради'),
     ];
 
     return Container(
+      // P3 #30: Такий же padding як у _buildMessagesList (16)
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // P3 #30: Заголовок вирівняно по лівому краю (без додаткового відступу)
           GestureDetector(
             onTap: () {
               setState(() {
@@ -624,6 +630,7 @@ class _ChatScreenState extends State<ChatScreen> {
             firstChild: Column(
               children: [
                 const SizedBox(height: 8),
+                // P3 #30: Кнопки вирівняні по лівому краю
                 Row(
                   children: quickActionsRow1.map((action) {
                     return Expanded(
@@ -662,7 +669,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildQuickActionChip(QuickAction action) {
     return Material(
-      color: AppTheme.primaryColor.withOpacity(0.1),
+      color: AppTheme.primaryColor.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: () => _sendMessage(action.text),
@@ -709,7 +716,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -747,7 +754,7 @@ class _ChatScreenState extends State<ChatScreen> {
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.3 + (value * 0.5)),
+            color: AppTheme.primaryColor.withValues(alpha: 0.3 + (value * 0.5)),
             shape: BoxShape.circle,
           ),
         );
@@ -767,7 +774,7 @@ class _ChatScreenState extends State<ChatScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

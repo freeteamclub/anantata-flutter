@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 
 /// Splash Screen Anantata
-/// Версія: 1.1 - Тільки UI, навігація в main.dart
-/// Дата: 22.12.2025
+/// Версія: 1.2 - Виправлено deprecated withOpacity
+/// Дата: 24.12.2025
 ///
 /// Виправлено:
+/// - P3 #2 - Замінено withOpacity на withValues(alpha:) для Web сумісності
 /// - Видалено власну навігацію (конфлікт з AppStartup в main.dart)
 /// - Тепер це чистий UI компонент
 
@@ -86,7 +87,8 @@ class _SplashScreenState extends State<SplashScreen>
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      // P3 #2: Виправлено withOpacity → withValues
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -129,7 +131,8 @@ class _SplashScreenState extends State<SplashScreen>
                 'AI Career Coach',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.white.withOpacity(0.8),
+                  // P3 #2: Виправлено withOpacity → withValues
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontFamily: 'NunitoSans',
                 ),
               ),
@@ -141,7 +144,8 @@ class _SplashScreenState extends State<SplashScreen>
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.white.withOpacity(0.8),
+                    // P3 #2: Виправлено withOpacity → withValues
+                    Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
               ),
