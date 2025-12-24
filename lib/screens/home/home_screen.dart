@@ -12,12 +12,13 @@ import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/goal/goals_list_screen.dart';
 
-/// Головний екран додатку v4.4
-/// + Автооновлення статистики при поверненні на головну
-/// Версія: 4.4
-/// Дата: 21.12.2025
+/// Головний екран додатку v4.5
+/// Версія: 4.5
+/// Дата: 24.12.2025
 ///
 /// Виправлено:
+/// - P2 #25 - Прибрано кнопку профілю у верхньому куті (є в нижньому меню)
+/// - P3 #28 - Логотип вирівняно по лівому краю
 /// - Баг #8 - Статистика оновлюється автоматично при переході на головну
 
 class HomeScreen extends StatefulWidget {
@@ -189,8 +190,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
+      // P3 #28: Логотип по лівому краю
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
             'assets/images/logo_anantata.png',
@@ -209,13 +212,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.person_outline, color: Colors.white),
-          onPressed: () => _navigateToTab(3),
-        ),
-      ],
+      // P3 #28: Не центрувати заголовок
+      centerTitle: false,
+      // P2 #25: Видалено actions з кнопкою профілю (є в нижньому меню)
     );
   }
 
@@ -325,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -462,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.amber.withOpacity(0.5), width: 1.5),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1.5),
         ),
         child: Row(
           children: [
@@ -470,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
+                color: Colors.amber.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.folder, color: Colors.amber, size: 28),
@@ -525,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.8)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(colors: [AppTheme.primaryColor, AppTheme.primaryColor.withValues(alpha: 0.8)], begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -533,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.psychology, color: Colors.white, size: 28),
             ),
             const SizedBox(width: 16),
@@ -543,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   const Text('Потрібна допомога?', style: TextStyle(fontFamily: 'Bitter', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('Запитайте AI коуча про ваш план', style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13, color: Colors.white.withOpacity(0.9))),
+                  Text('Запитайте AI коуча про ваш план', style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13, color: Colors.white.withValues(alpha: 0.9))),
                 ],
               ),
             ),
@@ -569,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         child: Padding(
@@ -595,7 +594,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: isSelected ? BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)) : null,
+        decoration: isSelected ? BoxDecoration(color: AppTheme.primaryColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)) : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
