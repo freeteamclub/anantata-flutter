@@ -479,10 +479,10 @@ class _GenerationScreenState extends State<GenerationScreen>
       child: Column(
         children: [
           const Text(
-            'Match Score',
+            'Ваша відповідність цілі',
             style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
+              fontSize: 18,
+              color: Colors.black87,
               fontWeight: FontWeight.w500,
             ),
           ),

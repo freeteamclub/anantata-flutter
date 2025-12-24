@@ -775,7 +775,7 @@ class GoalSummary {
 
 /// Модель списку цілей (до 3 цілей)
 class GoalsListModel {
-  static const int maxGoals = 3;
+  static const int maxGoals = 1; // TODO: Premium = 3
 
   final List<GoalSummary> goals;
   final String? primaryGoalId;

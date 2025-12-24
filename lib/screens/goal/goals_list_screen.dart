@@ -260,7 +260,15 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     return buffer.toString();
   }
 
-  void _addNewGoal() {
+  void _addNewGoal() async {
+    // P2 #2: Перевіряємо ліміт цілей
+    final canAdd = await _storage.canAddNewGoal();
+    
+    if (!canAdd) {
+      _showGoalLimitDialog();
+      return;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -274,6 +282,31 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             Navigator.pop(context);
           },
         ),
+      ),
+    );
+  }
+
+  // P2 #2: Попап при досягненні ліміту цілей
+  void _showGoalLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(
+          Icons.lock_outline,
+          color: Colors.orange,
+          size: 48,
+        ),
+        title: const Text('Ціль вже розпочата'),
+        content: const Text(
+          'Вам доступна 1 ціль. Завершіть поточну ціль або видаліть її, щоб створити нову.',
+          style: TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Зрозуміло'),
+          ),
+        ],
       ),
     );
   }
@@ -323,8 +356,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
           children: [
             const Icon(Icons.folder, color: Colors.amber, size: 28),
             const SizedBox(width: 8),
-            Text(
-              'Мої цілі (${_goalsList?.count ?? 0}/${GoalsListModel.maxGoals})',
+            const Text(
+              'Моя ціль',
               style: const TextStyle(
                 fontFamily: 'Bitter',
                 color: AppTheme.textPrimary,

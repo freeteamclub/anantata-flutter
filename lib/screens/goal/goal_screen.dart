@@ -53,6 +53,43 @@ class _GoalScreenState extends State<GoalScreen> {
     Navigator.pop(context, 'openPlan');
   }
 
+  /// Пройти оцінювання з перевіркою ліміту
+  void _startAssessment() async {
+    final canAdd = await _storage.canAddNewGoal();
+    
+    if (!canAdd) {
+      _showGoalLimitDialog();
+      return;
+    }
+    
+    Navigator.pop(context);
+  }
+
+  /// Попап при досягненні ліміту цілей
+  void _showGoalLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(
+          Icons.lock_outline,
+          color: Colors.orange,
+          size: 48,
+        ),
+        title: const Text('Ціль вже розпочата'),
+        content: const Text(
+          'Вам доступна 1 ціль. Завершіть поточну ціль або видаліть її, щоб створити нову.',
+          style: TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Зрозуміло'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,16 +196,14 @@ class _GoalScreenState extends State<GoalScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Кнопка пройти оцінювання знову
+          // Кнопка пройти оцінювання
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: _startAssessment,
               icon: const Icon(Icons.refresh),
               label: const Text(
-                'Пройти оцінювання знову',
+                'Пройти оцінювання',
                 style: TextStyle(
                   fontFamily: 'NunitoSans',
                   fontWeight: FontWeight.w600,

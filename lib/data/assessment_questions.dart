@@ -191,7 +191,7 @@ final List<AssessmentQuestion> assessmentQuestions = [
     options: [
       'Висока зарплата',
       'Розвиток та навчання',
-      'Work-life balance',
+      'Баланс роботи та життя',
       'Цікаві задачі та команда',
     ],
   ),

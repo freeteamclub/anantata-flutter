@@ -4,20 +4,25 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/screens/assessment/generation_screen.dart';
+import 'package:anantata/screens/goal/goals_list_screen.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Екран профілю користувача
-/// Версія: 2.4.0 - Перейменовано кнопку оцінювання
-/// Дата: 24.12.2025
+/// Версія: 2.5.0 - Додано блок "Моя ціль"
+/// Дата: 25.12.2025
 ///
 /// Виправлено:
+/// - P2 #2 - Додано блок "Моя ціль" (перенесено з головної)
 /// - P3 #8 - Перейменовано "Пройти оцінювання знову" → "Пройти оцінювання"
 /// - Баг #9 - Передача onBack до AssessmentScreen
 /// - Баг #7 (профіль) - Оновлено версію з 1.0.0 на 2.0.0
 /// - Допрацювання #3 - Текст "Видалити ціль, план та прогрес"
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// Callback для навігації на інший таб (напр. Plan)
+  final void Function(int tabIndex)? onNavigateToTab;
+
+  const ProfileScreen({super.key, this.onNavigateToTab});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -32,6 +37,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _completedDirections = 0;
   int _progressPercent = 0;
 
+  // P2 #2: Інформація про ціль
+  GoalSummary? _currentGoal;
+  bool _hasGoal = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,15 +49,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadStats() async {
     final plan = await _storage.getCareerPlan();
-    if (plan != null && mounted) {
-      final completed = plan.steps.where((s) => s.status == ItemStatus.done).length;
-      final directions = plan.directions.where((d) => d.status == ItemStatus.done).length;
-      final total = plan.steps.length;
+    final goalsList = await _storage.getGoalsList();
+
+    if (mounted) {
+      int completed = 0;
+      int directions = 0;
+      int total = 100;
+
+      if (plan != null) {
+        completed = plan.steps.where((s) => s.status == ItemStatus.done).length;
+        directions = plan.directions.where((d) => d.status == ItemStatus.done).length;
+        total = plan.steps.length;
+      }
 
       setState(() {
         _completedSteps = completed;
         _completedDirections = directions;
         _progressPercent = total > 0 ? ((completed / total) * 100).round() : 0;
+        _hasGoal = goalsList.goals.isNotEmpty;
+        _currentGoal = goalsList.primaryGoal;
       });
     }
   }
@@ -145,6 +164,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _completedSteps = 0;
           _completedDirections = 0;
           _progressPercent = 0;
+          _hasGoal = false;
+          _currentGoal = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           // Допрацювання #3: Оновлено текст підтвердження
@@ -156,6 +177,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // P3 #8: Оновлено текст діалогу
   Future<void> _startAssessment() async {
+    // P2 #2: Перевіряємо чи можна додати нову ціль
+    final canAdd = await _storage.canAddNewGoal();
+
+    if (!canAdd) {
+      _showGoalLimitDialog();
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -202,6 +231,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // P2 #2: Попап при досягненні ліміту цілей
+  void _showGoalLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(
+          Icons.lock_outline,
+          color: Colors.orange,
+          size: 48,
+        ),
+        title: const Text('Ціль вже розпочата'),
+        content: const Text(
+          'Вам доступна 1 ціль. Завершіть поточну ціль або видаліть її, щоб створити нову.',
+          style: TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Зрозуміло'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Баг #9: Додано метод навігації до генерації плану
   void _navigateToGeneration(Map<int, String> answers) {
     Navigator.push(
@@ -218,6 +272,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // P2 #2: Перехід до екрану цілей
+  void _navigateToGoalsList() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const GoalsListScreen(),
+      ),
+    ).then((result) {
+      _loadStats(); // Оновлюємо після повернення
+      // Якщо результат 'openPlan' - переходимо на таб План
+      if (result == 'openPlan' && widget.onNavigateToTab != null) {
+        widget.onNavigateToTab!(1); // 1 = Plan tab
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -229,6 +299,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Секція профілю / авторизації
             _buildProfileSection(),
+            const SizedBox(height: 24),
+
+            // P2 #2: Блок "Моя ціль"
+            _buildGoalSection(),
             const SizedBox(height: 24),
 
             // Статистика
@@ -253,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -378,10 +452,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppTheme.primaryColor.withOpacity(0.3),
+              color: AppTheme.primaryColor.withValues(alpha: 0.3),
               width: 2,
             ),
           ),
@@ -471,6 +545,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // P2 #2: Блок "Моя ціль"
+  Widget _buildGoalSection() {
+    return GestureDetector(
+      onTap: _hasGoal ? _navigateToGoalsList : _startAssessment,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.flag, color: Colors.amber, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Моя ціль',
+                    style: TextStyle(
+                      fontFamily: 'Bitter',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _hasGoal
+                        ? (_currentGoal?.title ?? 'Переглянути ціль')
+                        : 'Створіть свою першу ціль',
+                    style: TextStyle(
+                      fontFamily: 'NunitoSans',
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatsSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -479,7 +619,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -567,7 +707,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

@@ -10,14 +10,14 @@ import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/screens/assessment/generation_screen.dart';
 import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
-import 'package:anantata/screens/goal/goals_list_screen.dart';
 
-/// Головний екран додатку v4.5
-/// Версія: 4.5
-/// Дата: 24.12.2025
+/// Головний екран додатку v4.6
+/// Версія: 4.6
+/// Дата: 25.12.2025
 ///
 /// Виправлено:
-/// - P2 #25 - Прибрано кнопку профілю у верхньому куті (є в нижньому меню)
+/// - P2 #2 - Видалено блок "Мої цілі" (перенесено в Профіль)
+/// - P2 #25 - Прибрано кнопку профілю у верхньому куті (є в нижньому мену)
 /// - P3 #28 - Логотип вирівняно по лівому краю
 /// - Баг #8 - Статистика оновлюється автоматично при переході на головну
 
@@ -39,10 +39,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   CareerPlanModel? _plan;
   String _userName = '';
   bool _isLoading = true;
-
-  // Інформація про цілі
-  int _goalsCount = 0;
-  int _maxGoals = 3;
 
   @override
   void initState() {
@@ -83,9 +79,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-    // Отримуємо інформацію про цілі
-    final goalsList = await _storage.getGoalsList();
-
     final displayName = _supabase.isAuthenticated
         ? (_supabase.userName ?? name ?? 'Користувач')
         : (name ?? 'Користувач');
@@ -93,8 +86,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _userName = displayName;
       _plan = plan;
-      _goalsCount = goalsList.count;
-      _maxGoals = GoalsListModel.maxGoals;
       _isLoading = false;
     });
   }
@@ -111,14 +102,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!canAdd) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ Досягнуто максимум цілей (3/3). Видаліть існуючу, щоб додати нову.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        _navigateToGoalsList();
+        // P2 #2: Показуємо попап замість переходу
+        _showGoalLimitDialog();
       }
       return;
     }
@@ -136,6 +121,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Navigator.pop(context);
           },
         ),
+      ),
+    );
+  }
+
+  // P2 #2: Попап при досягненні ліміту цілей
+  void _showGoalLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(
+          Icons.lock_outline,
+          color: Colors.orange,
+          size: 48,
+        ),
+        title: const Text('Ціль вже розпочата'),
+        content: const Text(
+          'Вам доступна 1 ціль. Завершіть поточну ціль або видаліть її, щоб створити нову.',
+          style: TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Зрозуміло'),
+          ),
+        ],
       ),
     );
   }
@@ -160,21 +170,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  void _navigateToGoalsList() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const GoalsListScreen(),
-      ),
-    ).then((result) {
-      _loadData();
-      // Якщо результат 'openPlan' - переходимо на таб План
-      if (result == 'openPlan') {
-        _navigateToTab(1);
-      }
-    });
   }
 
   @override
@@ -230,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 2:
         return const ChatScreen();
       case 3:
-        return const ProfileScreen();
+        return ProfileScreen(onNavigateToTab: _navigateToTab);
       default:
         return _buildHomeContent();
     }
@@ -315,7 +310,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final totalDirections = _plan?.directions.length ?? 10;
 
     return GestureDetector(
-      // ✅ ВИПРАВЛЕНО: Клік веде на PlanScreen (таб 1), а не на Профіль
       onTap: _plan != null ? () => _navigateToTab(1) : null,
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -344,7 +338,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                // ✅ ВИПРАВЛЕНО: Бейдж тепер ЗЕЛЕНИЙ
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -363,7 +356,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ],
             ),
             const SizedBox(height: 16),
-            // ✅ ВИПРАВЛЕНО: Шкала тепер ЗЕЛЕНА
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
@@ -414,20 +406,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // P2 #2: Видалено _buildGoalsCard() - перенесено в Профіль
   Widget _buildQuickActions() {
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(child: _buildActionCard(icon: Icons.chat_bubble_outline, label: 'AI Чат', onTap: () => _navigateToTab(2))),
-            const SizedBox(width: 12),
-            Expanded(child: _buildActionCard(icon: Icons.assignment_outlined, label: 'Оцінювання', onTap: _navigateToAssessment)),
-            const SizedBox(width: 12),
-            Expanded(child: _buildActionCard(icon: Icons.insights, label: 'План', onTap: () => _navigateToTab(1))),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _buildGoalsCard(),
+        Expanded(child: _buildActionCard(icon: Icons.chat_bubble_outline, label: 'AI Чат', onTap: () => _navigateToTab(2))),
+        const SizedBox(width: 12),
+        Expanded(child: _buildActionCard(icon: Icons.assignment_outlined, label: 'Оцінювання', onTap: _navigateToAssessment)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildActionCard(icon: Icons.insights, label: 'План', onTap: () => _navigateToTab(1))),
       ],
     );
   }
@@ -447,45 +434,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Icon(icon, color: AppTheme.primaryColor, size: 28),
             const SizedBox(height: 8),
             Text(label, style: const TextStyle(fontFamily: 'NunitoSans', fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.textPrimary)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoalsCard() {
-    return GestureDetector(
-      onTap: _navigateToGoalsList,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.folder, color: Colors.amber, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Мої цілі', style: TextStyle(fontFamily: 'Bitter', fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text(_goalsCount > 0 ? 'Активних цілей: $_goalsCount/$_maxGoals' : 'Створіть свою першу ціль', style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13, color: Colors.grey[600])),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 18),
           ],
         ),
       ),
