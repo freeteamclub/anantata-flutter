@@ -6,14 +6,14 @@ import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/screens/assessment/generation_screen.dart';
 
 /// Екран плану з 10 напрямками та 100 кроками
-/// Версія: 4.4.0 - Ліміт пропущених кроків
-/// Дата: 21.12.2025
+/// Версія: 4.5.0 - Прибрано функцію "Пропустити крок"
+/// Дата: 24.12.2025
 ///
 /// Виправлено:
+/// - P2 #37 - Видалено кнопку "Пропустити" (спрощена логіка: виконано/не виконано)
 /// - Баг #6 - Додано заголовок з назвою цілі та цільовим доходом
 /// - Баг #8 - Додано callback onStepStatusChanged для автооновлення статистики
 /// - Допрацювання #15 - Кнопка "Пройти оцінювання" на порожній сторінці
-/// - Допрацювання #4 - Ліміт пропущених кроків (20)
 
 class PlanScreen extends StatefulWidget {
   /// Callback при зміні статусу кроку (для оновлення статистики на головній)
@@ -33,9 +33,6 @@ class _PlanScreenState extends State<PlanScreen> {
   CareerPlanModel? _plan;
   bool _isLoading = true;
   int? _expandedDirectionIndex;
-
-  // Допрацювання #4: Ліміт пропущених кроків
-  static const int _maxSkippedSteps = 20;
 
   @override
   void initState() {
@@ -57,52 +54,6 @@ class _PlanScreenState extends State<PlanScreen> {
     await _loadData();
     // Баг #8: Викликаємо callback для оновлення статистики на головній
     widget.onStepStatusChanged?.call();
-  }
-
-  // Допрацювання #4: Перевірка ліміту перед пропуском
-  Future<void> _skipStep(String stepId) async {
-    final skippedCount = _plan?.skippedStepsCount ?? 0;
-
-    // Перевіряємо ліміт
-    if (skippedCount >= _maxSkippedSteps) {
-      _showSkipLimitDialog();
-      return;
-    }
-
-    await _storage.skipStep(stepId);
-    await _loadData();
-    // Баг #8: Викликаємо callback для оновлення статистики на головній
-    widget.onStepStatusChanged?.call();
-  }
-
-  // Допрацювання #4: Діалог при досягненні ліміту
-  void _showSkipLimitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: Colors.orange[700],
-          size: 48,
-        ),
-        title: const Text('Ліміт пропусків досягнуто'),
-        content: Text(
-          'Ви вже пропустили $_maxSkippedSteps кроків.\n\n'
-              'Щоб пропустити інші, спочатку виконайте або скасуйте пропуск деяких кроків.',
-          style: TextStyle(
-            fontSize: 15,
-            color: Colors.grey[700],
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Зрозуміло'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _resetStep(String stepId) async {
@@ -145,15 +96,6 @@ class _PlanScreenState extends State<PlanScreen> {
       ),
     );
   }
-
-  // Допрацювання #4: Перевірка чи можна пропускати
-  bool get _canSkipMore {
-    final skippedCount = _plan?.skippedStepsCount ?? 0;
-    return skippedCount < _maxSkippedSteps;
-  }
-
-  // Допрацювання #4: Кількість пропущених кроків
-  int get _skippedCount => _plan?.skippedStepsCount ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +183,7 @@ class _PlanScreenState extends State<PlanScreen> {
         gradient: LinearGradient(
           colors: [
             AppTheme.primaryColor,
-            AppTheme.primaryColor.withOpacity(0.8),
+            AppTheme.primaryColor.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -249,7 +191,7 @@ class _PlanScreenState extends State<PlanScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            color: AppTheme.primaryColor.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -264,7 +206,7 @@ class _PlanScreenState extends State<PlanScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -289,7 +231,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -335,7 +277,7 @@ class _PlanScreenState extends State<PlanScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -377,13 +319,13 @@ class _PlanScreenState extends State<PlanScreen> {
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.assignment_outlined,
                 size: 48,
-                color: AppTheme.primaryColor.withOpacity(0.5),
+                color: AppTheme.primaryColor.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 24),
@@ -441,6 +383,7 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
+  // P2 #37: Спрощений прогрес-бар (без індикатора пропущених)
   Widget _buildProgressBar() {
     final progress = _plan?.overallProgress ?? 0;
     final completed = _plan?.completedStepsCount ?? 0;
@@ -454,7 +397,7 @@ class _PlanScreenState extends State<PlanScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -505,52 +448,13 @@ class _PlanScreenState extends State<PlanScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Допрацювання #4: Текст прогресу з індикатором пропущених
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Виконано $completed з $total кроків',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              // Індикатор пропущених кроків
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _canSkipMore
-                      ? Colors.orange.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _canSkipMore
-                        ? Colors.orange.withOpacity(0.3)
-                        : Colors.red.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.skip_next,
-                      size: 14,
-                      color: _canSkipMore ? Colors.orange[700] : Colors.red[700],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$_skippedCount/$_maxSkippedSteps',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _canSkipMore ? Colors.orange[700] : Colors.red[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // P2 #37: Простий текст прогресу (без індикатора пропущених)
+          Text(
+            'Виконано $completed з $total кроків',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
         ],
       ),
@@ -565,9 +469,9 @@ class _PlanScreenState extends State<PlanScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.1),
+        color: AppTheme.primaryColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -648,13 +552,13 @@ class _PlanScreenState extends State<PlanScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isExpanded
-              ? AppTheme.primaryColor.withOpacity(0.5)
+              ? AppTheme.primaryColor.withValues(alpha: 0.5)
               : Colors.grey[200]!,
         ),
         boxShadow: isExpanded
             ? [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -682,7 +586,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     decoration: BoxDecoration(
                       color: progress == 100
                           ? Colors.green
-                          : AppTheme.primaryColor.withOpacity(0.1),
+                          : AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(
@@ -776,19 +680,19 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 
+  // P2 #37: Спрощений StepItem (без кнопки "Пропустити")
   Widget _buildStepItem(StepModel step) {
     final isDone = step.status == ItemStatus.done;
-    final isSkipped = step.status == ItemStatus.skipped;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Чекбокс
+          // Чекбокс (виконано / не виконано)
           GestureDetector(
             onTap: () {
-              if (isDone || isSkipped) {
+              if (isDone) {
                 _resetStep(step.id);
               } else {
                 _markStepDone(step.id);
@@ -799,25 +703,15 @@ class _PlanScreenState extends State<PlanScreen> {
               height: 36,
               margin: const EdgeInsets.only(right: 14),
               decoration: BoxDecoration(
-                color: isDone
-                    ? Colors.green
-                    : isSkipped
-                    ? Colors.orange
-                    : Colors.grey[100],
+                color: isDone ? Colors.green : Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isDone
-                      ? Colors.green
-                      : isSkipped
-                      ? Colors.orange
-                      : Colors.grey[300]!,
+                  color: isDone ? Colors.green : Colors.grey[300]!,
                   width: 2,
                 ),
               ),
               child: isDone
                   ? const Icon(Icons.check, color: Colors.white, size: 20)
-                  : isSkipped
-                  ? const Icon(Icons.skip_next, color: Colors.white, size: 20)
                   : null,
             ),
           ),
@@ -837,30 +731,24 @@ class _PlanScreenState extends State<PlanScreen> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                // Заголовок - ЧОРНИЙ
+                // Заголовок
                 Text(
                   step.title,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: isDone || isSkipped
-                        ? Colors.grey[500]
-                        : Colors.black87,
-                    decoration: isDone || isSkipped
-                        ? TextDecoration.lineThrough
-                        : null,
+                    color: isDone ? Colors.grey[500] : Colors.black87,
+                    decoration: isDone ? TextDecoration.lineThrough : null,
                   ),
                 ),
                 if (step.description.isNotEmpty) ...[
                   const SizedBox(height: 5),
-                  // Опис - ЧОРНИЙ
+                  // Опис
                   Text(
                     step.description,
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDone || isSkipped
-                          ? Colors.grey[500]
-                          : Colors.black87,
+                      color: isDone ? Colors.grey[500] : Colors.black87,
                       height: 1.4,
                     ),
                     maxLines: 3,
@@ -870,25 +758,7 @@ class _PlanScreenState extends State<PlanScreen> {
               ],
             ),
           ),
-
-          // Допрацювання #4: Кнопка пропустити (заблокована якщо ліміт)
-          if (!isDone && !isSkipped)
-            IconButton(
-              onPressed: _canSkipMore ? () => _skipStep(step.id) : null,
-              icon: Icon(
-                Icons.skip_next,
-                color: _canSkipMore ? Colors.grey[400] : Colors.grey[300],
-                size: 24,
-              ),
-              tooltip: _canSkipMore
-                  ? 'Пропустити'
-                  : 'Ліміт пропусків досягнуто ($_skippedCount/$_maxSkippedSteps)',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 36,
-                minHeight: 36,
-              ),
-            ),
+          // P2 #37: Видалено кнопку "Пропустити"
         ],
       ),
     );
@@ -896,9 +766,8 @@ class _PlanScreenState extends State<PlanScreen> {
 
   Widget _buildNextBlockButton() {
     final completed = _plan?.completedStepsCount ?? 0;
-    final skipped = _plan?.skippedStepsCount ?? 0;
     final total = _plan?.steps.length ?? 100;
-    final allDone = (completed + skipped) >= total;
+    final allDone = completed >= total;
     final currentBlock = _plan?.currentBlock ?? 1;
 
     return Container(
@@ -906,12 +775,12 @@ class _PlanScreenState extends State<PlanScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: allDone
-            ? Colors.green.withOpacity(0.1)
+            ? Colors.green.withValues(alpha: 0.1)
             : Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: allDone
-              ? Colors.green.withOpacity(0.3)
+              ? Colors.green.withValues(alpha: 0.3)
               : Colors.grey[300]!,
         ),
       ),
@@ -962,7 +831,7 @@ class _PlanScreenState extends State<PlanScreen> {
               child: Text(
                 allDone
                     ? 'Згенерувати блок ${currentBlock + 1}'
-                    : 'Ще ${total - completed - skipped} кроків залишилось',
+                    : 'Ще ${total - completed} кроків залишилось',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
