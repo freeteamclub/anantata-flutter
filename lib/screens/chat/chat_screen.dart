@@ -8,11 +8,12 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 1.6.0 - Форматування відповідей AI
-/// Дата: 21.12.2025
+/// Версія: 1.8.0 - Покращено обробку офлайн помилок
+/// Дата: 23.12.2025
 ///
 /// Виправлено:
-/// - Баг #3 - Швидкі дії в 2 рядки + спойлер
+/// - Баг #3 - Офлайн помилка до оцінювання тепер показує user-friendly текст
+/// - Баг #5 - Кнопка "Назад" перевіряє canPop, не показує чорний екран
 /// - Баг #4 - Кнопка "Назад" завжди показується
 /// - Баг #9 - Можливість виділити та скопіювати текст
 /// - Баг #12b - Коректна помилка при офлайн режимі
@@ -56,6 +57,16 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Баг #5: Безпечний вихід з екрану
+  void _safeNavigateBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      // Якщо немає куди повертатись - нічого не робимо
+      debugPrint('⚠️ ChatScreen: Немає куди повертатись (canPop = false)');
+    }
   }
 
   Future<void> _loadChatHistory() async {
@@ -192,16 +203,71 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // Баг #3: Розширена перевірка мережевих помилок
   bool _isNetworkError(dynamic error) {
     final errorString = error.toString().toLowerCase();
-    return errorString.contains('socketexception') ||
-        errorString.contains('clientexception') ||
-        errorString.contains('failed host lookup') ||
-        errorString.contains('no address associated') ||
-        errorString.contains('network is unreachable') ||
-        errorString.contains('connection refused') ||
-        errorString.contains('connection timed out') ||
-        errorString.contains('no internet');
+
+    // Список патернів мережевих помилок
+    final networkPatterns = [
+      'socketexception',
+      'clientexception',
+      'failed host lookup',
+      'no address associated',
+      'network is unreachable',
+      'connection refused',
+      'connection timed out',
+      'no internet',
+      'errno = 7',           // Android: No address associated with hostname
+      'errno = 101',         // Network is unreachable
+      'errno = 110',         // Connection timed out
+      'errno = 111',         // Connection refused
+      'handshakeexception',  // SSL/TLS помилки
+      'certificateexception',
+      'os error',
+      'failed to connect',
+      'unable to resolve host',
+      'unknownhostexception',
+      'econnrefused',
+      'etimedout',
+      'enetunreach',
+      'ehostunreach',
+      'connection reset',
+      'broken pipe',
+      'connection closed',
+      'generativelanguage.googleapis.com', // Специфічна для Gemini
+    ];
+
+    for (final pattern in networkPatterns) {
+      if (errorString.contains(pattern)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Баг #3: Отримати user-friendly повідомлення про помилку
+  String _getErrorMessage(dynamic error) {
+    if (_isNetworkError(error)) {
+      return '📵 **Немає з\'єднання з інтернетом.**\n\n'
+          'Перевірте підключення до мережі та спробуйте ще раз.';
+    }
+
+    // Перевіряємо специфічні помилки API
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('quota') || errorString.contains('rate limit')) {
+      return '⏳ **Перевищено ліміт запитів.**\n\n'
+          'Зачекайте хвилину та спробуйте ще раз.';
+    }
+
+    if (errorString.contains('invalid') || errorString.contains('unauthorized')) {
+      return '🔑 **Помилка авторизації.**\n\n'
+          'Спробуйте перезапустити додаток.';
+    }
+
+    // Загальна помилка
+    return '⚠️ Виникла помилка. Спробуйте ще раз. 🙏';
   }
 
   Future<void> _sendMessage([String? quickAction]) async {
@@ -218,26 +284,42 @@ class _ChatScreenState extends State<ChatScreen> {
       _isTyping = true;
     });
 
+    // Баг #3: Обгортаємо весь блок у try-catch для надійності
     try {
       String response;
 
-      if (_plan != null) {
-        final context = _gemini.buildAIContext(
-          plan: _plan!,
-          chatHistory: _messages
-              .map((m) => {
-            'role': m.isUser ? 'user' : 'assistant',
-            'content': m.text,
-          })
-              .toList(),
-        );
+      // Баг #3: Окремий try-catch для API запиту
+      try {
+        if (_plan != null) {
+          final context = _gemini.buildAIContext(
+            plan: _plan!,
+            chatHistory: _messages
+                .map((m) => {
+              'role': m.isUser ? 'user' : 'assistant',
+              'content': m.text,
+            })
+                .toList(),
+          );
 
-        response = await _gemini.sendMessageWithContext(
-          message: text,
-          context: context,
-        );
-      } else {
-        response = await _gemini.chat(text);
+          response = await _gemini.sendMessageWithContext(
+            message: text,
+            context: context,
+          );
+        } else {
+          // Баг #3: До оцінювання - використовуємо простий chat
+          response = await _gemini.chat(text);
+        }
+      } catch (apiError) {
+        // Баг #3: Логуємо для дебагу
+        debugPrint('❌ API помилка: $apiError');
+
+        setState(() {
+          _isTyping = false;
+        });
+
+        // Баг #3: Показуємо user-friendly повідомлення
+        _addBotMessage(_getErrorMessage(apiError));
+        return;
       }
 
       setState(() {
@@ -245,20 +327,16 @@ class _ChatScreenState extends State<ChatScreen> {
       });
 
       _addBotMessage(response);
+
     } catch (e) {
+      // Баг #3: Загальний catch для будь-яких інших помилок
+      debugPrint('❌ Загальна помилка в _sendMessage: $e');
+
       setState(() {
         _isTyping = false;
       });
 
-      String errorMessage;
-      if (_isNetworkError(e)) {
-        errorMessage = '📵 **Немає з\'єднання з інтернетом.**\n\n'
-            'Перевірте підключення до мережі та спробуйте ще раз.';
-      } else {
-        errorMessage = 'Виникла помилка. Спробуйте ще раз. 🙏';
-      }
-
-      _addBotMessage(errorMessage);
+      _addBotMessage(_getErrorMessage(e));
     }
   }
 
@@ -296,9 +374,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
+      // Баг #5: Використовуємо безпечний метод виходу
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
+        onPressed: _safeNavigateBack,
       ),
       title: Row(
         mainAxisSize: MainAxisSize.min,

@@ -3,14 +3,18 @@ import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/screens/assessment/assessment_screen.dart';
+import 'package:anantata/screens/assessment/generation_screen.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Екран профілю користувача
-/// Версія: 2.2.0 - Оновлено текст очищення даних
-/// Дата: 21.12.2025
+/// Версія: 2.4.0 - Перейменовано кнопку оцінювання
+/// Дата: 24.12.2025
 ///
-/// Допрацювання:
-/// - #3 - Текст "Видалити ціль, план та прогрес"
+/// Виправлено:
+/// - P3 #8 - Перейменовано "Пройти оцінювання знову" → "Пройти оцінювання"
+/// - Баг #9 - Передача onBack до AssessmentScreen
+/// - Баг #7 (профіль) - Оновлено версію з 1.0.0 на 2.0.0
+/// - Допрацювання #3 - Текст "Видалити ціль, план та прогрес"
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -150,13 +154,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _restartAssessment() async {
+  // P3 #8: Оновлено текст діалогу
+  Future<void> _startAssessment() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Пройти оцінювання знову?'),
+        // P3 #8: Прибрано "знову"
+        title: const Text('Пройти оцінювання?'),
         content: const Text(
-          'Це створить новий план розвитку. Поточний прогрес буде збережено в історії.',
+          'Це створить нову ціль та план розвитку.',
         ),
         actions: [
           TextButton(
@@ -172,11 +178,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirm == true && mounted) {
+      // Баг #9: Передаємо всі необхідні callbacks
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const AssessmentScreen()),
+        MaterialPageRoute(
+          builder: (context) => AssessmentScreen(
+            // Баг #9: onBack - дозволяє вийти з оцінювання
+            onBack: () {
+              Navigator.pop(context);
+            },
+            // onComplete викликається після успішної генерації
+            onComplete: () {
+              // Нічого не робимо тут, бо onSubmit вже обробляє навігацію
+            },
+            // onSubmit - обробляємо відповіді та переходимо до генерації
+            onSubmit: (answers) {
+              Navigator.pop(context); // Закриваємо AssessmentScreen
+              _navigateToGeneration(answers);
+            },
+          ),
+        ),
       );
     }
+  }
+
+  // Баг #9: Додано метод навігації до генерації плану
+  void _navigateToGeneration(Map<int, String> answers) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GenerationScreen(
+          answers: answers,
+          onComplete: () {
+            Navigator.pop(context); // Закриваємо GenerationScreen
+            _loadStats(); // Оновлюємо статистику
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -551,9 +590,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _buildSettingsItem(
             icon: Icons.refresh,
-            title: 'Пройти оцінювання знову',
-            subtitle: 'Оновити ціль та план',
-            onTap: _restartAssessment,
+            // P3 #8: Прибрано "знову"
+            title: 'Пройти оцінювання',
+            // P3 #8: Змінено "Оновити" → "Створити"
+            subtitle: 'Створити ціль та план',
+            onTap: _startAssessment,
           ),
           _buildDivider(),
           _buildSettingsItem(
@@ -568,12 +609,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSettingsItem(
             icon: Icons.info_outline,
             title: 'Про додаток',
-            subtitle: 'Anantata Career Coach v1.0.0',
+            // Баг #7 (профіль): Оновлено версію
+            subtitle: 'Anantata Career Coach v2.0.0',
             onTap: () {
               showAboutDialog(
                 context: context,
                 applicationName: 'Anantata Career Coach',
-                applicationVersion: 'v1.0.0',
+                // Баг #7 (профіль): Оновлено версію
+                applicationVersion: 'v2.0.0',
                 applicationIcon: Container(
                   width: 48,
                   height: 48,

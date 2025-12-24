@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/data/assessment_questions.dart';
 
-/// Екран кар'єрного оцінювання v2.4
+/// Екран кар'єрного оцінювання v2.6
 /// 15 питань з прогрес-баром та валідацією
-/// Версія: 2.4 - Додано вступний екран з поясненням
-/// Дата: 21.12.2025
+/// Версія: 2.6 - Підтримка landscape mode
+/// Дата: 24.12.2025
 ///
 /// Виправлено:
+/// - P3 #6 - Intro екран адаптований для landscape mode (горизонтальна орієнтація)
+/// - Баг #9 - Fallback Navigator.pop() коли onBack не передано
+/// - Баг #1 - Збільшено кнопку та SafeArea для Android Go
 /// - Баг #10 - кнопка "Завершити" на малих екранах
 /// - Баг #2 - автопідйом поля "Ваш варіант" при клавіатурі
 /// - Баг #7 - прогрес 100% тільки після відповіді на останнє питання
@@ -83,6 +86,18 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     _customInputFocusNode.removeListener(_onCustomInputFocusChange);
     _customInputFocusNode.dispose();
     super.dispose();
+  }
+
+  // Баг #9: Універсальний метод виходу з екрану
+  void _exitScreen() {
+    if (widget.onBack != null) {
+      widget.onBack!.call();
+    } else {
+      // Fallback: якщо onBack не передано, використовуємо Navigator
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    }
   }
 
   // Допрацювання #7: Почати оцінювання (закрити intro)
@@ -210,8 +225,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              widget.onBack?.call();
+              Navigator.pop(context); // Закриваємо діалог
+              _exitScreen(); // Баг #9: Використовуємо універсальний метод
             },
             child: const Text('Вийти'),
           ),
@@ -222,7 +237,16 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   void _submitAssessment() {
     widget.onSubmit?.call(_answers);
-    widget.onComplete?.call();
+
+    // Баг #9: Якщо onComplete не передано, просто закриваємо екран
+    if (widget.onComplete != null) {
+      widget.onComplete!.call();
+    } else {
+      // Fallback: повертаємось назад
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    }
   }
 
   @override
@@ -234,7 +258,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
+    // Баг #1: Більш агресивне визначення малого екрану
     final isSmallScreen = screenHeight < 700 || screenWidth < 400;
+    // Баг #1: Визначаємо Android Go / дуже малі екрани
+    final isVerySmallScreen = screenHeight < 600 || screenWidth < 360;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -277,14 +304,28 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               ),
             ),
           ),
-          _buildBottomButton(isSmallScreen),
+          _buildBottomButton(isSmallScreen, isVerySmallScreen),
         ],
       ),
     );
   }
 
-  // Допрацювання #7: Вступний екран з поясненням
+  // P3 #6: Оновлений вступний екран з підтримкою landscape
   Widget _buildIntroScreen() {
+    // P3 #6: Визначаємо орієнтацію екрану
+    final orientation = MediaQuery.of(context).orientation;
+    final isLandscape = orientation == Orientation.landscape;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // P3 #6: Адаптивні розміри для landscape
+    final iconSize = isLandscape ? 80.0 : 120.0;
+    final iconInnerSize = isLandscape ? 40.0 : 56.0;
+    final titleFontSize = isLandscape ? 24.0 : 28.0;
+    final subtitleFontSize = isLandscape ? 14.0 : 16.0;
+    final verticalSpacing = isLandscape ? 16.0 : 32.0;
+    final smallSpacing = isLandscape ? 8.0 : 16.0;
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -292,92 +333,225 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.close, color: Colors.grey[600]),
-          onPressed: () {
-            widget.onBack?.call();
-          },
+          onPressed: _exitScreen, // Баг #9: Використовуємо універсальний метод
         ),
       ),
+      // P3 #6: Загортаємо в SingleChildScrollView для landscape
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Spacer(flex: 1),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isLandscape ? 48 : 24,
+            vertical: isLandscape ? 8 : 24,
+          ),
+          child: isLandscape
+              ? _buildLandscapeIntroContent(
+            iconSize: iconSize,
+            iconInnerSize: iconInnerSize,
+            titleFontSize: titleFontSize,
+            subtitleFontSize: subtitleFontSize,
+            verticalSpacing: verticalSpacing,
+            smallSpacing: smallSpacing,
+          )
+              : _buildPortraitIntroContent(
+            iconSize: iconSize,
+            iconInnerSize: iconInnerSize,
+            titleFontSize: titleFontSize,
+            subtitleFontSize: subtitleFontSize,
+            verticalSpacing: verticalSpacing,
+            smallSpacing: smallSpacing,
+          ),
+        ),
+      ),
+    );
+  }
 
+  // P3 #6: Портретний layout (оригінальний)
+  Widget _buildPortraitIntroContent({
+    required double iconSize,
+    required double iconInnerSize,
+    required double titleFontSize,
+    required double subtitleFontSize,
+    required double verticalSpacing,
+    required double smallSpacing,
+  }) {
+    return Column(
+      children: [
+        SizedBox(height: verticalSpacing),
+
+        // Іконка
+        Container(
+          width: iconSize,
+          height: iconSize,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.rocket_launch_rounded,
+            size: iconInnerSize,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        SizedBox(height: verticalSpacing),
+
+        // Заголовок
+        Text(
+          'Кар\'єрна оцінка',
+          style: TextStyle(
+            fontFamily: 'Bitter',
+            fontSize: titleFontSize,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: smallSpacing / 2),
+
+        // Підзаголовок
+        Text(
+          'Дізнайтеся свій потенціал та отримайте\nперсональний план розвитку',
+          style: TextStyle(
+            fontFamily: 'NunitoSans',
+            fontSize: subtitleFontSize,
+            color: Colors.grey[600],
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: verticalSpacing),
+
+        // Пункти пояснення
+        _buildInfoItem(
+          icon: Icons.timer_outlined,
+          title: '15 питань • ~5 хвилин',
+          subtitle: 'Швидке та просте проходження',
+        ),
+        SizedBox(height: smallSpacing),
+        _buildInfoItem(
+          icon: Icons.psychology_outlined,
+          title: 'AI аналіз відповідей',
+          subtitle: 'Штучний інтелект оцінить ваш профіль',
+        ),
+        SizedBox(height: smallSpacing),
+        _buildInfoItem(
+          icon: Icons.checklist_rounded,
+          title: '100 кроків до мети',
+          subtitle: 'Отримаєте детальний план розвитку',
+        ),
+
+        SizedBox(height: verticalSpacing * 1.5),
+
+        // Кнопка "Почати"
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: _startAssessment,
+            icon: const Icon(Icons.play_arrow_rounded, size: 24),
+            label: const Text(
+              'Почати оцінювання',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 2,
+            ),
+          ),
+        ),
+        SizedBox(height: smallSpacing),
+
+        // Додаткова інформація
+        Text(
+          'Ваші відповіді зберігаються локально',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey[500],
+          ),
+        ),
+
+        SizedBox(height: verticalSpacing),
+      ],
+    );
+  }
+
+  // P3 #6: Ландшафтний layout (компактний, 2 колонки)
+  Widget _buildLandscapeIntroContent({
+    required double iconSize,
+    required double iconInnerSize,
+    required double titleFontSize,
+    required double subtitleFontSize,
+    required double verticalSpacing,
+    required double smallSpacing,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Ліва колонка: іконка + заголовок + кнопка
+        Expanded(
+          flex: 4,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
               // Іконка
               Container(
-                width: 120,
-                height: 120,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.rocket_launch_rounded,
-                  size: 56,
+                  size: iconInnerSize,
                   color: AppTheme.primaryColor,
                 ),
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: smallSpacing),
 
               // Заголовок
-              const Text(
+              Text(
                 'Кар\'єрна оцінка',
                 style: TextStyle(
                   fontFamily: 'Bitter',
-                  fontSize: 28,
+                  fontSize: titleFontSize,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: smallSpacing / 2),
 
               // Підзаголовок
               Text(
-                'Дізнайтеся свій потенціал та отримайте\nперсональний план розвитку',
+                'Дізнайтеся свій потенціал та\nотримайте персональний план',
                 style: TextStyle(
                   fontFamily: 'NunitoSans',
-                  fontSize: 16,
+                  fontSize: subtitleFontSize,
                   color: Colors.grey[600],
-                  height: 1.5,
+                  height: 1.4,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-
-              // Пункти пояснення
-              _buildInfoItem(
-                icon: Icons.timer_outlined,
-                title: '15 питань • ~5 хвилин',
-                subtitle: 'Швидке та просте проходження',
-              ),
-              const SizedBox(height: 16),
-              _buildInfoItem(
-                icon: Icons.psychology_outlined,
-                title: 'AI аналіз відповідей',
-                subtitle: 'Штучний інтелект оцінить ваш профіль',
-              ),
-              const SizedBox(height: 16),
-              _buildInfoItem(
-                icon: Icons.checklist_rounded,
-                title: '100 кроків до мети',
-                subtitle: 'Отримаєте детальний план розвитку',
-              ),
-
-              const Spacer(flex: 2),
+              SizedBox(height: verticalSpacing),
 
               // Кнопка "Почати"
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 48,
                 child: ElevatedButton.icon(
                   onPressed: _startAssessment,
-                  icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
                   label: const Text(
-                    'Почати оцінювання',
+                    'Почати',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -385,28 +559,53 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                     backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 2,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Додаткова інформація
-              Text(
-                'Ваші відповіді зберігаються локально',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                ),
-              ),
-
-              const Spacer(flex: 1),
             ],
           ),
         ),
-      ),
+
+        SizedBox(width: verticalSpacing),
+
+        // Права колонка: пункти пояснення
+        Expanded(
+          flex: 5,
+          child: Column(
+            children: [
+              _buildInfoItemCompact(
+                icon: Icons.timer_outlined,
+                title: '15 питань • ~5 хвилин',
+                subtitle: 'Швидке проходження',
+              ),
+              SizedBox(height: smallSpacing),
+              _buildInfoItemCompact(
+                icon: Icons.psychology_outlined,
+                title: 'AI аналіз відповідей',
+                subtitle: 'Оцінка вашого профілю',
+              ),
+              SizedBox(height: smallSpacing),
+              _buildInfoItemCompact(
+                icon: Icons.checklist_rounded,
+                title: '100 кроків до мети',
+                subtitle: 'Детальний план розвитку',
+              ),
+              SizedBox(height: smallSpacing),
+              // Додаткова інформація
+              Text(
+                'Відповіді зберігаються локально',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -462,6 +661,68 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // P3 #6: Компактний елемент для landscape
+  Widget _buildInfoItemCompact({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: AppTheme.primaryColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -644,8 +905,13 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     );
   }
 
-  Widget _buildBottomButton(bool isSmallScreen) {
+  // Баг #1: Оновлено з параметром isVerySmallScreen
+  Widget _buildBottomButton(bool isSmallScreen, bool isVerySmallScreen) {
     final isLastQuestion = _currentQuestionIndex == _totalQuestions - 1;
+
+    // Баг #1: Отримуємо системні відступи
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -663,9 +929,15 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         ],
       ),
       child: SafeArea(
-        minimum: EdgeInsets.only(bottom: isSmallScreen ? 4 : 0),
+        // Баг #1: Збільшено мінімальний відступ для Android Go
+        minimum: EdgeInsets.only(
+          bottom: isVerySmallScreen
+              ? 8 + bottomPadding
+              : (isSmallScreen ? 4 : 0),
+        ),
         child: Row(
           children: [
+            // Кнопка "Назад"
             TextButton.icon(
               onPressed: _previousQuestion,
               icon: Icon(Icons.arrow_back, size: isSmallScreen ? 18 : 24),
@@ -683,8 +955,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               ),
             ),
             const Spacer(),
+            // Баг #1: Кнопка "Далі/Завершити" - збільшено для малих екранів
             SizedBox(
-              height: isSmallScreen ? 44 : 48,
+              // Баг #1: Збільшено висоту для Android Go
+              height: isVerySmallScreen ? 52 : (isSmallScreen ? 48 : 52),
               child: ElevatedButton.icon(
                 onPressed: _canProceed ? _nextQuestion : null,
                 icon: Icon(
@@ -694,7 +968,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 label: Text(
                   isLastQuestion ? 'Завершити' : 'Далі',
                   style: TextStyle(
-                    fontSize: isSmallScreen ? 14 : 16,
+                    fontSize: isVerySmallScreen ? 15 : (isSmallScreen ? 14 : 16),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -702,15 +976,20 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey[300],
+                  // Баг #1: Збільшено padding для кращого touch target
                   padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 16 : 24,
-                    vertical: isSmallScreen ? 10 : 12,
+                    horizontal: isVerySmallScreen ? 20 : (isSmallScreen ? 16 : 24),
+                    vertical: isVerySmallScreen ? 14 : (isSmallScreen ? 10 : 12),
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   tapTargetSize: MaterialTapTargetSize.padded,
-                  minimumSize: Size(isSmallScreen ? 120 : 140, 44),
+                  // Баг #1: Збільшено мінімальний розмір для Android Go
+                  minimumSize: Size(
+                    isVerySmallScreen ? 140 : (isSmallScreen ? 120 : 140),
+                    isVerySmallScreen ? 52 : 48,
+                  ),
                 ),
               ),
             ),

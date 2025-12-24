@@ -11,8 +11,11 @@ import 'package:anantata/screens/goal/goal_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 
 /// Екран "Мої цілі" — управління до 3 цілей
-/// Версія: 1.2.0 - Виправлено const конструктор
-/// Дата: 15.12.2025
+/// Версія: 1.3.0 - Додано нижнє меню навігації
+/// Дата: 23.12.2025
+///
+/// Виправлено:
+/// - Баг #4 - Додано BottomNavigationBar для консистентності
 
 class GoalsListScreen extends StatefulWidget {
   const GoalsListScreen({super.key});
@@ -299,6 +302,12 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     );
   }
 
+  // Баг #4: Навігація через нижнє меню
+  void _onBottomNavTap(int index) {
+    // Закриваємо поточний екран і повертаємось на головний з потрібним індексом
+    Navigator.pop(context, index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -329,6 +338,100 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
           : _buildContent(),
+      // Баг #4: Додано нижнє меню навігації
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  // Баг #4: Побудова нижнього меню
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home,
+                label: 'Головна',
+                index: 0,
+                isActive: false,
+              ),
+              _buildNavItem(
+                icon: Icons.assignment_outlined,
+                activeIcon: Icons.assignment,
+                label: 'План',
+                index: 1,
+                isActive: false,
+              ),
+              _buildNavItem(
+                icon: Icons.chat_bubble_outline,
+                activeIcon: Icons.chat_bubble,
+                label: 'Чат',
+                index: 2,
+                isActive: false,
+              ),
+              _buildNavItem(
+                icon: Icons.person_outline,
+                activeIcon: Icons.person,
+                label: 'Профіль',
+                index: 3,
+                isActive: false,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int index,
+    required bool isActive,
+  }) {
+    final color = isActive ? AppTheme.primaryColor : Colors.grey[600];
+
+    return InkWell(
+      onTap: () => _onBottomNavTap(index),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              color: color,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'NunitoSans',
+                fontSize: 12,
+                color: color,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
