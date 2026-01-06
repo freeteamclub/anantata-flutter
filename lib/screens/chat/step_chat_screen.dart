@@ -9,8 +9,12 @@ import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран чату для допомоги по конкретному кроку
-/// Версія: 1.2.1 - Виправлено помилку signInWithGoogle
-/// Дата: 05.01.2026
+/// Версія: 1.3.0 - Оновлений AppBar "Головна / Крок N"
+/// Дата: 07.01.2026
+///
+/// Зміни v1.3.0:
+/// - AppBar тепер показує "Головна / Крок N" (глобальний номер)
+/// - Використовується stepNumber замість localNumber
 ///
 /// Функціонал:
 /// - Контекстний чат для роботи над конкретним кроком
@@ -331,6 +335,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
     );
   }
 
+  // 🆕 Оновлений AppBar з "Головна / Крок N" по центру
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
@@ -338,12 +343,12 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: const Text(
-        'Допомога по кроку',
-        style: TextStyle(
+      title: Text(
+        'Головна / Крок ${widget.step.stepNumber}',
+        style: const TextStyle(
           fontFamily: 'Bitter',
           fontSize: 18,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
       ),
@@ -433,7 +438,6 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
     );
   }
 
-  // ВИПРАВЛЕНО: user != null замість bool
   Future<void> _signInWithGoogle() async {
     try {
       final user = await _supabase.signInWithGoogle();
@@ -472,7 +476,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
     }
 
     final buffer = StringBuffer();
-    buffer.writeln('💬 Допомога по кроку: ${widget.step.title}');
+    buffer.writeln('💬 Допомога по кроку ${widget.step.stepNumber}: ${widget.step.title}');
     buffer.writeln('=' * 30);
     buffer.writeln();
 
@@ -565,6 +569,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
     );
   }
 
+  // 🆕 Оновлено: показуємо глобальний номер кроку
   Widget _buildStepInfo() {
     return Container(
       margin: const EdgeInsets.all(12),
@@ -587,11 +592,11 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
             ),
             child: Center(
               child: Text(
-                '${widget.step.localNumber}',
+                '${widget.step.stepNumber}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
             ),

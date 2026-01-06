@@ -12,22 +12,16 @@ import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/chat/step_chat_screen.dart';
 
-/// Головний екран додатку v5.3
-/// Версія: 5.3
-/// Дата: 06.01.2026
+/// Головний екран додатку v6.0
+/// Версія: 6.0
+/// Дата: 07.01.2026
+///
+/// Зміни v6.0:
+/// - Динамічний AppBar (логотип для Головна/Помічник, текст для Профіль)
+/// - Глобальна нумерація кроків 1-100 (замість 1-10 в кожному напрямку)
 ///
 /// Зміни v5.3:
-/// - Прибрано дублюючий intro екран "Почніть свою подорож"
-/// - При натисканні "Почати оцінювання" одразу відкривається AssessmentScreen з intro
-/// - Спрощено _buildNoPlanCard() без ракети (ракета є в AssessmentScreen)
-///
-/// Зміни v5.2:
-/// - Додано кнопку допомоги по кроку (іконка хмарки)
-/// - Створено StepChatScreen для контекстного чату
-///
-/// Зміни v5.1:
-/// - Додано кнопки "Зберегти" та "Очистити" для чату
-/// - "Чат" → "Помічник" в меню
+/// - Прибрано дублюючий intro екран
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,15 +37,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final SupabaseService _supabase = SupabaseService();
   final SyncService _sync = SyncService();
 
-  // v5.1: GlobalKey для доступу до методів ChatScreen
   final GlobalKey<ChatScreenState> _chatKey = GlobalKey<ChatScreenState>();
 
-  // Дані плану
   CareerPlanModel? _plan;
   String _userName = '';
   bool _isLoading = true;
   
-  // Стан розгорнутого напрямку (з plan_screen)
   int? _expandedDirectionIndex;
 
   @override
@@ -99,7 +90,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  // Логіка кроків (з plan_screen)
   Future<void> _markStepDone(String stepId) async {
     await _storage.markStepDone(stepId);
     await _loadData();
@@ -141,11 +131,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.lock_outline,
-          color: Colors.orange,
-          size: 48,
-        ),
+        icon: const Icon(Icons.lock_outline, color: Colors.orange, size: 48),
         title: const Text('Ціль вже розпочата'),
         content: const Text(
           'Вам доступна 1 ціль. Завершіть поточну ціль або видаліть її, щоб створити нову.',
@@ -193,41 +179,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // 🆕 Динамічний AppBar - назва табу по центру
   PreferredSizeWidget _buildAppBar() {
+    // Визначаємо назву залежно від табу
+    String title;
+    switch (_currentIndex) {
+      case 0:
+        title = 'Головна';
+        break;
+      case 1:
+        title = 'Помічник';
+        break;
+      case 2:
+        title = 'Профіль';
+        break;
+      default:
+        title = 'Головна';
+    }
+
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            'assets/images/logo_anantata.png',
-            height: 32,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.auto_awesome, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'Anantata',
-            style: TextStyle(
-              fontFamily: 'Bitter',
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: 'Bitter',
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
       ),
-      centerTitle: false,
-      // v5.1: Кнопки для чату (тільки на екрані "Помічник")
+      centerTitle: true,
       actions: _currentIndex == 1
           ? [
-              // Зберегти чат
               IconButton(
                 onPressed: _saveChatToClipboard,
                 icon: const Icon(Icons.save_outlined, color: Colors.white),
                 tooltip: 'Зберегти чат',
               ),
-              // Очистити чат
               IconButton(
                 onPressed: _clearChat,
                 icon: const Icon(Icons.delete_outline, color: Colors.white),
@@ -238,44 +226,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // v5.1: Зберегти чат в буфер обміну
   void _saveChatToClipboard() {
     final chatText = _chatKey.currentState?.getChatAsText() ?? '';
     
     if (chatText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Чат порожній'),
-          backgroundColor: Colors.orange,
-        ),
+        const SnackBar(content: Text('Чат порожній'), backgroundColor: Colors.orange),
       );
       return;
     }
     
     Clipboard.setData(ClipboardData(text: chatText));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Чат скопійовано в буфер обміну'),
-        backgroundColor: Colors.green,
-      ),
+      const SnackBar(content: Text('✅ Чат скопійовано в буфер обміну'), backgroundColor: Colors.green),
     );
   }
 
-  // v5.1: Очистити чат
   void _clearChat() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.delete_outline,
-          color: Colors.red,
-          size: 48,
-        ),
+        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 48),
         title: const Text('Очистити чат?'),
-        content: const Text(
-          'Вся історія повідомлень буде видалена.',
-          style: TextStyle(fontSize: 15),
-        ),
+        content: const Text('Вся історія повідомлень буде видалена.', style: TextStyle(fontSize: 15)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -286,16 +259,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Navigator.pop(context);
               _chatKey.currentState?.clearChatMessages();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Чат очищено'),
-                  backgroundColor: Colors.green,
-                ),
+                const SnackBar(content: Text('Чат очищено'), backgroundColor: Colors.green),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             child: const Text('Очистити'),
           ),
         ],
@@ -308,7 +275,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 0:
         return _buildHomeContent();
       case 1:
-        // v5.1: Передаємо key для доступу до методів
         return ChatScreen(key: _chatKey);
       case 2:
         return ProfileScreen(onNavigateToTab: _navigateToTab);
@@ -319,33 +285,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildHomeContent() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryColor),
-      );
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
     }
 
-    // Якщо плану немає - показуємо спрощену картку старту
     if (_plan == null) {
       return _buildNoPlanCard();
     }
 
-    // Якщо план є - показуємо напрямки та кроки
     return RefreshIndicator(
       onRefresh: _loadData,
       color: AppTheme.primaryColor,
       child: CustomScrollView(
         slivers: [
-          // Заголовок з ціллю
-          SliverToBoxAdapter(
-            child: _buildGoalHeader(),
-          ),
-
-          // Прогрес
-          SliverToBoxAdapter(
-            child: _buildProgressCard(),
-          ),
-
-          // Заголовок списку
+          SliverToBoxAdapter(child: _buildGoalHeader()),
+          SliverToBoxAdapter(child: _buildProgressCard()),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -360,8 +313,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
-
-          // Напрямки з кроками
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
@@ -371,22 +322,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               childCount: _plan!.directions.length,
             ),
           ),
-
-          // Кнопка генерації блоку 2
-          SliverToBoxAdapter(
-            child: _buildNextBlockButton(),
-          ),
-
-          // Відступ знизу
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
+          SliverToBoxAdapter(child: _buildNextBlockButton()),
+          SliverToBoxAdapter(child: _buildDeleteGoalButton()),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
   }
 
-  // Заголовок з ціллю (з plan_screen)
   Widget _buildGoalHeader() {
     final goalTitle = _plan?.goal.title ?? 'Моя ціль';
     final targetSalary = _plan?.goal.targetSalary ?? '';
@@ -397,10 +340,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor,
-            AppTheme.primaryColor.withValues(alpha: 0.8),
-          ],
+          colors: [AppTheme.primaryColor, AppTheme.primaryColor.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -424,21 +364,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.flag,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.flag, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 10),
               const Text(
                 'ВАША ЦІЛЬ',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70,
-                  letterSpacing: 1,
-                ),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70, letterSpacing: 1),
               ),
               const Spacer(),
               if (matchScore > 0)
@@ -453,14 +384,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       const Icon(Icons.stars, color: Colors.amber, size: 16),
                       const SizedBox(width: 4),
-                      Text(
-                        '$matchScore%',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      Text('$matchScore%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
                     ],
                   ),
                 ),
@@ -469,12 +393,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 12),
           Text(
             goalTitle,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.3,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, height: 1.3),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -493,11 +412,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(width: 6),
                   Text(
                     'Цільовий дохід: $targetSalary',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
                   ),
                 ],
               ),
@@ -520,11 +435,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -535,27 +446,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               const Text(
                 'Ваш прогрес',
-                style: TextStyle(
-                  fontFamily: 'Bitter',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
+                style: TextStyle(fontFamily: 'Bitter', fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   '${progress.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontFamily: 'Akrobat',
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
+                  style: const TextStyle(fontFamily: 'Akrobat', color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
                 ),
               ),
             ],
@@ -573,18 +471,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 12),
           Text(
             'Виконано $completedSteps з $totalSteps кроків',
-            style: TextStyle(
-              fontFamily: 'NunitoSans',
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontFamily: 'NunitoSans', fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),
     );
   }
 
-  // Картка напрямку (з plan_screen)
   Widget _buildDirectionCard(DirectionModel direction, int index) {
     final isExpanded = _expandedDirectionIndex == index;
     final steps = _plan!.getStepsForDirection(direction.id);
@@ -597,28 +490,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isExpanded
-              ? AppTheme.primaryColor.withValues(alpha: 0.5)
-              : Colors.grey[200]!,
+          color: isExpanded ? AppTheme.primaryColor.withValues(alpha: 0.5) : Colors.grey[200]!,
         ),
         boxShadow: isExpanded
-            ? [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
+            ? [BoxShadow(color: AppTheme.primaryColor.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))]
             : null,
       ),
       child: Column(
         children: [
           InkWell(
-            onTap: () {
-              setState(() {
-                _expandedDirectionIndex = isExpanded ? null : index;
-              });
-            },
+            onTap: () => setState(() => _expandedDirectionIndex = isExpanded ? null : index),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -628,9 +509,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: progress == 100
-                          ? Colors.green
-                          : AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: progress == 100 ? Colors.green : AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(
@@ -638,11 +517,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ? const Icon(Icons.check, color: Colors.white, size: 22)
                           : Text(
                               '${direction.directionNumber}',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                             ),
                     ),
                   ),
@@ -653,32 +528,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       children: [
                         Text(
                           direction.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text(
-                              '$doneCount/10 кроків',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                            Text('$doneCount/10 кроків', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                             const SizedBox(width: 8),
                             Text(
                               '• $progress%',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: progress == 100
-                                    ? Colors.green
-                                    : AppTheme.primaryColor,
-                              ),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: progress == 100 ? Colors.green : AppTheme.primaryColor),
                             ),
                           ],
                         ),
@@ -686,9 +545,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                   Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
+                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                     color: Colors.grey[400],
                     size: 28,
                   ),
@@ -703,10 +560,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: steps.length,
-              separatorBuilder: (context, index) => const Divider(
-                height: 1,
-                indent: 60,
-              ),
+              separatorBuilder: (context, index) => const Divider(height: 1, indent: 60),
               itemBuilder: (context, stepIndex) {
                 final step = steps[stepIndex];
                 return _buildStepItem(step);
@@ -718,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // Елемент кроку (з plan_screen)
+  // 🆕 Глобальна нумерація кроків (stepNumber замість localNumber)
   Widget _buildStepItem(StepModel step) {
     final isDone = step.status == ItemStatus.done;
 
@@ -742,27 +596,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               decoration: BoxDecoration(
                 color: isDone ? Colors.green : Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDone ? Colors.green : Colors.grey[300]!,
-                  width: 2,
-                ),
+                border: Border.all(color: isDone ? Colors.green : Colors.grey[300]!, width: 2),
               ),
-              child: isDone
-                  ? const Icon(Icons.check, color: Colors.white, size: 20)
-                  : null,
+              child: isDone ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
             ),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🆕 Глобальний номер кроку (1-100)
                 Text(
-                  'Крок ${step.localNumber}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.w600,
-                  ),
+                  'Крок ${step.stepNumber}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -778,11 +624,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 5),
                   Text(
                     step.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDone ? Colors.grey[500] : Colors.black87,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(fontSize: 14, color: isDone ? Colors.grey[500] : Colors.black87, height: 1.4),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -790,7 +632,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ],
             ),
           ),
-          // v5.2: Кнопка допомоги по кроку
           GestureDetector(
             onTap: () => _openStepChat(step),
             child: Container(
@@ -801,11 +642,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.chat_bubble_outline,
-                color: AppTheme.primaryColor,
-                size: 20,
-              ),
+              child: Icon(Icons.chat_bubble_outline, color: AppTheme.primaryColor, size: 20),
             ),
           ),
         ],
@@ -813,7 +650,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // v5.2: Відкрити чат для допомоги по кроку
   void _openStepChat(StepModel step) {
     Navigator.push(
       context,
@@ -828,7 +664,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // Кнопка генерації блоку 2 (з plan_screen)
   Widget _buildNextBlockButton() {
     final completed = _plan?.completedStepsCount ?? 0;
     final total = _plan?.steps.length ?? 100;
@@ -839,43 +674,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: allDone
-            ? Colors.green.withValues(alpha: 0.1)
-            : Colors.grey[100],
+        color: allDone ? Colors.green.withValues(alpha: 0.1) : Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: allDone
-              ? Colors.green.withValues(alpha: 0.3)
-              : Colors.grey[300]!,
-        ),
+        border: Border.all(color: allDone ? Colors.green.withValues(alpha: 0.3) : Colors.grey[300]!),
       ),
       child: Column(
         children: [
-          Icon(
-            allDone ? Icons.celebration : Icons.lock_outline,
-            size: 48,
-            color: allDone ? Colors.green : Colors.grey[400],
-          ),
+          Icon(allDone ? Icons.celebration : Icons.lock_outline, size: 48, color: allDone ? Colors.green : Colors.grey[400]),
           const SizedBox(height: 12),
           Text(
-            allDone
-                ? '🎉 Блок $currentBlock завершено!'
-                : 'Згенерувати блок ${currentBlock + 1}',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: allDone ? Colors.green[700] : Colors.grey[600],
-            ),
+            allDone ? '🎉 Блок $currentBlock завершено!' : 'Згенерувати блок ${currentBlock + 1}',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: allDone ? Colors.green[700] : Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
             allDone
                 ? 'Ви виконали всі 100 кроків. Готові до наступного блоку?'
                 : 'Виконайте всі кроки поточного блоку, щоб розблокувати наступний ($completed/$total виконано)',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -889,24 +705,110 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 disabledBackgroundColor: Colors.grey[300],
                 disabledForegroundColor: Colors.grey[500],
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                allDone
-                    ? 'Згенерувати блок ${currentBlock + 1}'
-                    : 'Ще ${total - completed} кроків залишилось',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                allDone ? 'Згенерувати блок ${currentBlock + 1}' : 'Ще ${total - completed} кроків залишилось',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  // 🆕 Кнопка видалення цілі
+  Widget _buildDeleteGoalButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.delete_outline, size: 32, color: Colors.red[300]),
+          const SizedBox(height: 8),
+          Text(
+            'Видалити поточну ціль',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.red[700]),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Щоб згенерувати нову ціль та план',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _deleteCurrentGoal,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Видалити ціль', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCurrentGoal() async {
+    final goalTitle = _plan?.goal.title ?? 'Поточна ціль';
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.warning_amber, color: Colors.red, size: 48),
+        title: const Text('Видалити ціль?'),
+        content: Text(
+          'Ви впевнені, що хочете видалити ціль "$goalTitle"?\n\nВесь прогрес буде втрачено. Після видалення ви зможете створити нову ціль.',
+          style: const TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Скасувати'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Видалити'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final goalId = _plan?.goal.id;
+      if (goalId != null) {
+        await _storage.deleteGoal(goalId);
+      } else {
+        await _storage.clearAll();
+      }
+      
+      if (mounted) {
+        setState(() {
+          _plan = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🗑️ Ціль видалено. Тепер можна створити нову!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 
   void _generateNextBlock() {
@@ -932,9 +834,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: const Text('Згенерувати'),
           ),
         ],
@@ -942,8 +842,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // 🆕 v5.3: Спрощена картка "Немає плану" - без дублювання intro
-  // Ракета та опис будуть в AssessmentScreen
   Widget _buildNoPlanCard() {
     return Center(
       child: Padding(
@@ -951,26 +849,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // v5.3: Прибрано ракету (вона є в AssessmentScreen)
-            // Показуємо просту кнопку з текстом
             const Text(
               'Почніть свою подорож',
-              style: TextStyle(
-                fontFamily: 'Bitter',
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
+              style: TextStyle(fontFamily: 'Bitter', fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 12),
             Text(
               'Пройдіть оцінювання, щоб отримати\nперсональний план з 100 кроками',
-              style: TextStyle(
-                fontFamily: 'NunitoSans',
-                fontSize: 15,
-                color: Colors.grey[600],
-                height: 1.5,
-              ),
+              style: TextStyle(fontFamily: 'NunitoSans', fontSize: 15, color: Colors.grey[600], height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -984,14 +870,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: const TextStyle(
-                    fontFamily: 'Akrobat',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontFamily: 'Akrobat', fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -1010,18 +890,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  // Нижнє меню — 3 пункти
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: SafeArea(
         child: Padding(
@@ -1047,19 +920,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: isSelected
-            ? BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              )
+            ? BoxDecoration(color: AppTheme.primaryColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12))
             : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? AppTheme.primaryColor : Colors.grey,
-              size: 24,
-            ),
+            Icon(isSelected ? activeIcon : icon, color: isSelected ? AppTheme.primaryColor : Colors.grey, size: 24),
             const SizedBox(height: 4),
             Text(
               label,

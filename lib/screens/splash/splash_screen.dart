@@ -78,46 +78,9 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Логотип
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      // P3 #2: Виправлено withOpacity → withValues
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.asset(
-                    'assets/images/logo_anantata.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Center(
-                      child: Text(
-                        'A',
-                        style: TextStyle(
-                          fontSize: 64,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                          fontFamily: 'Bitter',
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
               // Назва
               const Text(
-                'Anantata',
+                '100StepsCareer',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,

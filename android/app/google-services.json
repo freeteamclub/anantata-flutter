@@ -12,7 +12,28 @@
           "package_name": "ai.anantata.careercoach"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "379834680294-8bd6dja0jdlj8563c0uerhc8djvou3ge.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.anantata.careercoach",
+            "certificate_hash": "bf661c1cd6191ab2a18c15ce1530f37445e2abb3"
+          }
+        },
+        {
+          "client_id": "379834680294-u1r2o8ghbebrbtl34h5hape23ruphp3v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.anantata.careercoach",
+            "certificate_hash": "ade41f8139bf3d9286929a0035f880bbb2bd6176"
+          }
+        },
+        {
+          "client_id": "379834680294-3nhg0c7nspkgkkqie4q1f0dg6r8sq5ne.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBvGLosP34V0Rwe1sylG-n_cRrR9dh9tJE"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "379834680294-3nhg0c7nspkgkkqie4q1f0dg6r8sq5ne.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "379834680294-c4pfu2auftk6mvb94i4jo35pue3neq49.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ai.anantata.anantata"
+              }
+            }
+          ]
         }
       }
     }

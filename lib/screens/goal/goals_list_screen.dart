@@ -346,27 +346,22 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            const Icon(Icons.folder, color: Colors.amber, size: 28),
-            const SizedBox(width: 8),
-            const Text(
-              'Моя ціль',
-              style: const TextStyle(
-                fontFamily: 'Bitter',
-                color: AppTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        title: const Text(
+          'Профіль / Моя ціль',
+          style: TextStyle(
+            fontFamily: 'Bitter',
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
@@ -376,7 +371,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     );
   }
 
-  // Баг #4: Побудова нижнього меню
+  // Баг #4: Побудова нижнього меню (3 пункти)
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -403,25 +398,18 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 isActive: false,
               ),
               _buildNavItem(
-                icon: Icons.assignment_outlined,
-                activeIcon: Icons.assignment,
-                label: 'План',
-                index: 1,
-                isActive: false,
-              ),
-              _buildNavItem(
                 icon: Icons.chat_bubble_outline,
                 activeIcon: Icons.chat_bubble,
-                label: 'Чат',
-                index: 2,
+                label: 'Помічник',
+                index: 1,
                 isActive: false,
               ),
               _buildNavItem(
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
                 label: 'Профіль',
-                index: 3,
-                isActive: false,
+                index: 2,
+                isActive: true,
               ),
             ],
           ),
@@ -547,14 +535,11 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   }
 
   Widget _buildGoalCard(GoalSummary goal) {
-    final isPrimary = _goalsList?.primaryGoalId == goal.id;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: isPrimary ? Border.all(color: Colors.amber, width: 2) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -568,35 +553,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                if (isPrimary)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.star, size: 14, color: Colors.white),
-                        SizedBox(width: 4),
-                        Text(
-                          'Головна',
-                          style: TextStyle(
-                            fontFamily: 'NunitoSans',
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
             Text(
               goal.title,
               style: const TextStyle(
@@ -675,28 +631,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                     icon: Icons.visibility,
                     label: 'Результат',
                     onTap: () => _showGoalResults(goal),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.chat_bubble_outline,
-                    label: 'Обговорити',
-                    onTap: () => _openChat(goal),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.star,
-                    label: 'Головна ціль',
-                    isHighlighted: isPrimary,
-                    highlightColor: Colors.amber,
-                    onTap: isPrimary ? null : () => _setPrimaryGoal(goal.id),
                   ),
                 ),
                 const SizedBox(width: 8),
