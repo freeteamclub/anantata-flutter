@@ -5,8 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Supabase
-/// Версія: 2.2.0 - Фільтрація чату по goalId
-/// Дата: 15.12.2025
+/// Версія: 2.4.0 - Додано підтримку FCM токенів та налаштувань сповіщень
+/// Дата: 05.01.2026
 
 class SupabaseService {
   static SupabaseService? _instance;
@@ -115,10 +115,8 @@ class SupabaseService {
     }
 
     // Mobile платформа (Android/iOS)
-    // serverClientId = Web Client ID (для отримання idToken)
-    // clientId не вказуємо для Android (використовує з google-services.json або SHA-1)
     final GoogleSignIn googleSignIn = GoogleSignIn(
-      serverClientId: googleClientId, // Web Client ID
+      serverClientId: googleClientId,
     );
 
     final googleUser = await googleSignIn.signIn();
@@ -146,7 +144,6 @@ class SupabaseService {
 
   /// Вихід
   Future<void> signOut() async {
-    // Вийти з Google
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn();
       await googleSignIn.signOut();
@@ -154,7 +151,6 @@ class SupabaseService {
       debugPrint('⚠️ Google Sign-Out помилка: $e');
     }
 
-    // Вийти з Supabase
     await client.auth.signOut();
     debugPrint('✅ Вихід виконано');
   }
@@ -256,6 +252,26 @@ class SupabaseService {
     }
   }
 
+  /// Отримати останню ціль користувача
+  Future<Map<String, dynamic>?> getLatestGoal() async {
+    if (!isAuthenticated) return null;
+
+    try {
+      final response = await client
+          .from('goals')
+          .select()
+          .eq('user_id', userId!)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      return response;
+    } catch (e) {
+      debugPrint('❌ Помилка отримання цілі: $e');
+      return null;
+    }
+  }
+
   /// Оновити ціль
   Future<void> updateGoal(String goalId, Map<String, dynamic> data) async {
     try {
@@ -340,7 +356,6 @@ class SupabaseService {
 
     try {
       final data = steps.map((s) {
-        // Знаходимо direction_id за номером напрямку
         final dirNumber = ((s.stepNumber - 1) ~/ 10) + 1;
         final directionId = directionIds[dirNumber];
 
@@ -379,7 +394,7 @@ class SupabaseService {
     }
   }
 
-  /// Оновити статус кроку
+  /// Оновити статус кроку (СТАРИЙ метод - залишаємо для сумісності)
   Future<void> updateStepStatus(String stepId, String status) async {
     try {
       await client.from('steps').update({
@@ -389,6 +404,65 @@ class SupabaseService {
       }).eq('id', stepId);
 
       debugPrint('✅ Крок оновлено: $status');
+    } catch (e) {
+      debugPrint('❌ Помилка оновлення кроку: $e');
+    }
+  }
+
+  /// 🆕 Оновити статус кроку по stepNumber (НОВИЙ метод)
+  Future<void> updateStepStatusByNumber({
+    required int stepNumber,
+    required String status,
+  }) async {
+    if (!isAuthenticated) {
+      debugPrint('❌ Користувач не авторизований');
+      return;
+    }
+
+    try {
+      // Спочатку знаходимо останню ціль користувача
+      final goal = await getLatestGoal();
+      if (goal == null) {
+        debugPrint('❌ Ціль не знайдена');
+        return;
+      }
+
+      final goalId = goal['id'] as String;
+
+      // Оновлюємо крок по goal_id + step_number
+      await client.from('steps').update({
+        'status': status,
+        'updated_at': DateTime.now().toIso8601String(),
+        if (status == 'done') 'completed_at': DateTime.now().toIso8601String(),
+        if (status != 'done') 'completed_at': null,
+      }).eq('goal_id', goalId).eq('step_number', stepNumber);
+
+      debugPrint('✅ Крок #$stepNumber оновлено в Supabase: $status');
+    } catch (e) {
+      debugPrint('❌ Помилка оновлення кроку: $e');
+    }
+  }
+
+  /// 🆕 Оновити статус кроку по goalId + stepNumber
+  Future<void> updateStepStatusByGoalAndNumber({
+    required String goalId,
+    required int stepNumber,
+    required String status,
+  }) async {
+    if (!isAuthenticated) {
+      debugPrint('❌ Користувач не авторизований');
+      return;
+    }
+
+    try {
+      await client.from('steps').update({
+        'status': status,
+        'updated_at': DateTime.now().toIso8601String(),
+        if (status == 'done') 'completed_at': DateTime.now().toIso8601String(),
+        if (status != 'done') 'completed_at': null,
+      }).eq('goal_id', goalId).eq('step_number', stepNumber);
+
+      debugPrint('✅ Крок #$stepNumber (goal: $goalId) оновлено: $status');
     } catch (e) {
       debugPrint('❌ Помилка оновлення кроку: $e');
     }
@@ -531,8 +605,6 @@ class SupabaseService {
   }
 
   /// Отримати історію чату
-  /// Якщо goalId = null, отримує загальний чат
-  /// Якщо goalId вказано, отримує чат для конкретної цілі
   Future<List<Map<String, dynamic>>> getChatHistory({
     int limit = 50,
     String? goalId,
@@ -545,7 +617,6 @@ class SupabaseService {
           .select()
           .eq('user_id', userId!);
 
-      // Фільтруємо по goalId
       if (goalId != null) {
         query = query.eq('goal_id', goalId);
       } else {
@@ -581,6 +652,161 @@ class SupabaseService {
       debugPrint('✅ Відповіді оцінювання збережено');
     } catch (e) {
       debugPrint('❌ Помилка збереження відповідей: $e');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FCM TOKENS (PUSH NOTIFICATIONS)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Зберегти FCM токен
+  Future<void> saveFcmToken({
+    required String token,
+    required String deviceType,
+    String? deviceName,
+  }) async {
+    if (!isAuthenticated) {
+      debugPrint('❌ Користувач не авторизований');
+      return;
+    }
+
+    try {
+      // Upsert - оновити якщо існує, створити якщо ні
+      await client.from('user_fcm_tokens').upsert({
+        'user_id': userId,
+        'token': token,
+        'device_type': deviceType,
+        'device_name': deviceName,
+        'is_active': true,
+        'last_used_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id, token');
+
+      debugPrint('✅ FCM токен збережено');
+    } catch (e) {
+      debugPrint('❌ Помилка збереження FCM токена: $e');
+    }
+  }
+
+  /// Деактивувати FCM токен (при виході)
+  Future<void> deactivateFcmToken(String token) async {
+    if (!isAuthenticated) return;
+
+    try {
+      await client.from('user_fcm_tokens').update({
+        'is_active': false,
+      }).eq('user_id', userId!).eq('token', token);
+
+      debugPrint('✅ FCM токен деактивовано');
+    } catch (e) {
+      debugPrint('❌ Помилка деактивації FCM токена: $e');
+    }
+  }
+
+  /// Видалити всі FCM токени користувача
+  Future<void> deleteAllFcmTokens() async {
+    if (!isAuthenticated) return;
+
+    try {
+      await client.from('user_fcm_tokens').delete().eq('user_id', userId!);
+      debugPrint('✅ Всі FCM токени видалено');
+    } catch (e) {
+      debugPrint('❌ Помилка видалення FCM токенів: $e');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // NOTIFICATION SETTINGS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Отримати налаштування сповіщень
+  Future<Map<String, dynamic>?> getNotificationSettings() async {
+    if (!isAuthenticated) return null;
+
+    try {
+      final response = await client
+          .from('notification_settings')
+          .select()
+          .eq('user_id', userId!)
+          .maybeSingle();
+
+      return response;
+    } catch (e) {
+      debugPrint('❌ Помилка отримання налаштувань сповіщень: $e');
+      return null;
+    }
+  }
+
+  /// Створити або оновити налаштування сповіщень
+  Future<void> saveNotificationSettings({
+    bool? pushEnabled,
+    bool? telegramEnabled,
+    String? reminderTime,
+    String? frequency,
+    bool? motivational,
+    bool? stepReminders,
+    bool? achievements,
+    bool? weeklyStats,
+  }) async {
+    if (!isAuthenticated) {
+      debugPrint('❌ Користувач не авторизований');
+      return;
+    }
+
+    try {
+      // Перевіряємо чи існують налаштування
+      final existing = await getNotificationSettings();
+
+      final data = {
+        'user_id': userId,
+        if (pushEnabled != null) 'push_enabled': pushEnabled,
+        if (telegramEnabled != null) 'telegram_enabled': telegramEnabled,
+        if (reminderTime != null) 'reminder_time': reminderTime,
+        if (frequency != null) 'frequency': frequency,
+        if (motivational != null) 'motivational': motivational,
+        if (stepReminders != null) 'step_reminders': stepReminders,
+        if (achievements != null) 'achievements': achievements,
+        if (weeklyStats != null) 'weekly_stats': weeklyStats,
+      };
+
+      if (existing == null) {
+        // Створюємо нові
+        await client.from('notification_settings').insert(data);
+        debugPrint('✅ Налаштування сповіщень створено');
+      } else {
+        // Оновлюємо існуючі
+        await client
+            .from('notification_settings')
+            .update(data)
+            .eq('user_id', userId!);
+        debugPrint('✅ Налаштування сповіщень оновлено');
+      }
+    } catch (e) {
+      debugPrint('❌ Помилка збереження налаштувань сповіщень: $e');
+    }
+  }
+
+  /// Ініціалізувати налаштування сповіщень за замовчуванням
+  Future<void> initNotificationSettings() async {
+    if (!isAuthenticated) return;
+
+    try {
+      final existing = await getNotificationSettings();
+      if (existing == null) {
+        await client.from('notification_settings').insert({
+          'user_id': userId,
+          'push_enabled': true,
+          'telegram_enabled': true,
+          'reminder_time': '09:00',
+          'frequency': 'daily',
+          'motivational': true,
+          'step_reminders': true,
+          'achievements': true,
+          'weekly_stats': false,
+        });
+        debugPrint('✅ Налаштування сповіщень ініціалізовано');
+      }
+    } catch (e) {
+      debugPrint('❌ Помилка ініціалізації налаштувань: $e');
     }
   }
 }

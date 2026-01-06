@@ -6,8 +6,8 @@ import 'package:anantata/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Сервіс для локального збереження даних
-/// Версія: 4.1.0 - Локальна історія чату для кожної цілі
-/// Дата: 15.12.2025
+/// Версія: 4.2.0 - Виправлено синхронізацію статусів кроків з Supabase
+/// Дата: 05.01.2026
 
 class StorageService {
   static const String _keyUserName = 'user_name';
@@ -17,11 +17,11 @@ class StorageService {
   static const String _keyMatchScore = 'match_score';
   static const String _keyGapAnalysis = 'gap_analysis';
 
-  // 🆕 Ключі для списку цілей
+  // Ключі для списку цілей
   static const String _keyGoalsList = 'goals_list';
   static const String _keyPrimaryGoalId = 'primary_goal_id';
-  static const String _keyAllPlans = 'all_plans'; // Зберігає всі плани
-  static const String _keyChatHistory = 'chat_history'; // 🆕 Історія чатів
+  static const String _keyAllPlans = 'all_plans';
+  static const String _keyChatHistory = 'chat_history';
 
   final Uuid _uuid = const Uuid();
   final SupabaseService _supabase = SupabaseService();
@@ -59,7 +59,6 @@ class StorageService {
     final jsonMap = answers.map((key, value) => MapEntry(key.toString(), value));
     await prefs.setString(_keyAssessmentAnswers, jsonEncode(jsonMap));
 
-    // Синхронізуємо з Supabase
     if (_supabase.isAuthenticated) {
       await _supabase.saveAssessmentAnswers(answers);
     }
@@ -80,11 +79,9 @@ class StorageService {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 🆕 CHAT HISTORY (локальна історія для кожної цілі)
+  // CHAT HISTORY (локальна історія для кожної цілі)
   // ═══════════════════════════════════════════════════════════════
 
-  /// Отримати історію чату для цілі
-  /// Якщо goalId = null, повертає пустий список (загальний чат в Supabase)
   Future<List<Map<String, dynamic>>> getLocalChatHistory(String? goalId) async {
     if (goalId == null) return [];
 
@@ -108,7 +105,6 @@ class StorageService {
     return [];
   }
 
-  /// Зберегти повідомлення в локальну історію чату
   Future<void> saveLocalChatMessage({
     required String goalId,
     required String text,
@@ -116,39 +112,33 @@ class StorageService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Отримуємо всі чати
     Map<String, dynamic> allChats = {};
     final allChatsJson = prefs.getString(_keyChatHistory);
     if (allChatsJson != null) {
       allChats = Map<String, dynamic>.from(jsonDecode(allChatsJson) as Map);
     }
 
-    // Отримуємо або створюємо чат для цієї цілі
     List<dynamic> messages = [];
     if (allChats.containsKey(goalId)) {
       messages = List<dynamic>.from(allChats[goalId] as List);
     }
 
-    // Додаємо нове повідомлення
     messages.add({
       'text': text,
       'is_user': isUser,
       'created_at': DateTime.now().toIso8601String(),
     });
 
-    // Обмежуємо до 100 останніх повідомлень
     if (messages.length > 100) {
       messages = messages.sublist(messages.length - 100);
     }
 
-    // Зберігаємо
     allChats[goalId] = messages;
     await prefs.setString(_keyChatHistory, jsonEncode(allChats));
 
     debugPrint('💬 Повідомлення збережено для цілі $goalId');
   }
 
-  /// Очистити історію чату для цілі
   Future<void> clearLocalChatHistory(String goalId) async {
     final prefs = await SharedPreferences.getInstance();
     final allChatsJson = prefs.getString(_keyChatHistory);
@@ -166,19 +156,16 @@ class StorageService {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 🆕 GOALS LIST (до 3 цілей)
+  // GOALS LIST (до 3 цілей)
   // ═══════════════════════════════════════════════════════════════
 
-  /// Отримати список всіх цілей
   Future<GoalsListModel> getGoalsList() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString(_keyGoalsList);
 
     if (jsonStr == null) {
-      // Якщо немає списку, перевіряємо чи є старий план
       final oldPlan = await getCareerPlan();
       if (oldPlan != null) {
-        // Мігруємо старий план в новий формат
         final summary = GoalSummary.fromCareerPlan(oldPlan);
         final goalsList = GoalsListModel(
           goals: [summary.copyWith(isPrimary: true)],
@@ -199,7 +186,6 @@ class StorageService {
     }
   }
 
-  /// Зберегти список цілей
   Future<void> _saveGoalsList(GoalsListModel goalsList) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyGoalsList, jsonEncode(goalsList.toJson()));
@@ -209,25 +195,21 @@ class StorageService {
     debugPrint('✅ Список цілей збережено: ${goalsList.count}/${GoalsListModel.maxGoals}');
   }
 
-  /// Чи можна додати нову ціль
   Future<bool> canAddNewGoal() async {
     final goalsList = await getGoalsList();
     return goalsList.canAddNew;
   }
 
-  /// Кількість доступних слотів для цілей
   Future<int> getAvailableGoalSlots() async {
     final goalsList = await getGoalsList();
     return goalsList.availableSlots;
   }
 
-  /// Встановити головну ціль
   Future<void> setPrimaryGoal(String goalId) async {
     final goalsList = await getGoalsList();
     final updatedList = goalsList.setPrimaryGoal(goalId);
     await _saveGoalsList(updatedList);
 
-    // Завантажуємо план цієї цілі як поточний
     final plan = await _getPlanById(goalId);
     if (plan != null) {
       await _saveCurrentPlan(plan);
@@ -236,26 +218,20 @@ class StorageService {
     debugPrint('⭐ Головна ціль: $goalId');
   }
 
-  /// Видалити ціль
   Future<void> deleteGoal(String goalId) async {
     final goalsList = await getGoalsList();
     final updatedList = goalsList.removeGoal(goalId);
     await _saveGoalsList(updatedList);
 
-    // Видаляємо план
     await _deletePlanById(goalId);
-
-    // 🆕 Видаляємо історію чату
     await clearLocalChatHistory(goalId);
 
-    // Якщо це була поточна ціль, завантажуємо нову головну
     if (updatedList.primaryGoal != null) {
       final newPrimaryPlan = await _getPlanById(updatedList.primaryGoal!.id);
       if (newPrimaryPlan != null) {
         await _saveCurrentPlan(newPrimaryPlan);
       }
     } else {
-      // Очищаємо поточний план якщо цілей не залишилось
       await clearPlan();
     }
 
@@ -263,29 +239,24 @@ class StorageService {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 🆕 ALL PLANS STORAGE (зберігання всіх планів)
+  // ALL PLANS STORAGE
   // ═══════════════════════════════════════════════════════════════
 
-  /// Зберегти план в загальне сховище
   Future<void> _savePlanToAllPlans(CareerPlanModel plan) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Отримуємо всі плани
     Map<String, dynamic> allPlans = {};
     final allPlansJson = prefs.getString(_keyAllPlans);
     if (allPlansJson != null) {
       allPlans = jsonDecode(allPlansJson) as Map<String, dynamic>;
     }
 
-    // Додаємо/оновлюємо план
     allPlans[plan.goal.id] = plan.toJson();
 
-    // Зберігаємо
     await prefs.setString(_keyAllPlans, jsonEncode(allPlans));
     debugPrint('💾 План збережено в allPlans: ${plan.goal.id}');
   }
 
-  /// Отримати план за ID
   Future<CareerPlanModel?> _getPlanById(String goalId) async {
     final prefs = await SharedPreferences.getInstance();
     final allPlansJson = prefs.getString(_keyAllPlans);
@@ -304,7 +275,6 @@ class StorageService {
     return null;
   }
 
-  /// Видалити план за ID
   Future<void> _deletePlanById(String goalId) async {
     final prefs = await SharedPreferences.getInstance();
     final allPlansJson = prefs.getString(_keyAllPlans);
@@ -321,7 +291,6 @@ class StorageService {
     }
   }
 
-  /// Зберегти як поточний план
   Future<void> _saveCurrentPlan(CareerPlanModel plan) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCareerPlan, jsonEncode(plan.toJson()));
@@ -333,31 +302,26 @@ class StorageService {
   // CAREER PLAN - SAVE
   // ═══════════════════════════════════════════════════════════════
 
-  /// Зберегти згенерований план та конвертувати в CareerPlanModel
   Future<CareerPlanModel> saveGeneratedPlan(GeneratedPlan generated) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Зберігаємо match score та gap analysis окремо для швидкого доступу
     await prefs.setInt(_keyMatchScore, generated.matchScore);
     await prefs.setString(_keyGapAnalysis, generated.gapAnalysis);
 
-    // Перевіряємо чи можна додати нову ціль
     final goalsList = await getGoalsList();
     final isFirstGoal = goalsList.count == 0;
 
-    // Створюємо GoalModel
     final goalId = _uuid.v4();
     final goal = GoalModel(
       id: goalId,
       userId: _supabase.userId ?? 'local_user',
       title: generated.goal.title,
       targetSalary: generated.goal.targetSalary,
-      isPrimary: isFirstGoal, // Перша ціль автоматично стає головною
+      isPrimary: isFirstGoal,
       status: 'active',
       createdAt: DateTime.now(),
     );
 
-    // Створюємо DirectionModels
     final List<DirectionModel> directions = [];
     for (final genDir in generated.directions) {
       directions.add(DirectionModel(
@@ -371,10 +335,8 @@ class StorageService {
       ));
     }
 
-    // Створюємо StepModels
     final List<StepModel> steps = [];
     for (final genStep in generated.steps) {
-      // Знаходимо відповідний напрямок
       final direction = directions.firstWhere(
             (d) => d.directionNumber == genStep.directionNumber,
         orElse: () => directions.first,
@@ -393,10 +355,8 @@ class StorageService {
       ));
     }
 
-    // Сортуємо кроки
     steps.sort((a, b) => a.stepNumber.compareTo(b.stepNumber));
 
-    // Створюємо повну модель
     final plan = CareerPlanModel(
       goal: goal,
       matchScore: generated.matchScore,
@@ -406,13 +366,9 @@ class StorageService {
       currentBlock: 1,
     );
 
-    // Зберігаємо в SharedPreferences (поточний план)
     await prefs.setString(_keyCareerPlan, jsonEncode(plan.toJson()));
-
-    // 🆕 Зберігаємо в загальне сховище планів
     await _savePlanToAllPlans(plan);
 
-    // 🆕 Додаємо до списку цілей
     final summary = GoalSummary.fromCareerPlan(plan);
     final updatedGoalsList = goalsList.addGoal(summary.copyWith(isPrimary: isFirstGoal));
     await _saveGoalsList(updatedGoalsList);
@@ -420,9 +376,6 @@ class StorageService {
     debugPrint('✅ План збережено локально: ${directions.length} напрямків, ${steps.length} кроків');
     debugPrint('📋 Цілей: ${updatedGoalsList.count}/${GoalsListModel.maxGoals}');
 
-    // ═══════════════════════════════════════════════════════════════
-    // СИНХРОНІЗАЦІЯ З SUPABASE
-    // ═══════════════════════════════════════════════════════════════
     if (_supabase.isAuthenticated) {
       debugPrint('☁️ Синхронізація плану з Supabase...');
       try {
@@ -442,7 +395,6 @@ class StorageService {
   // CAREER PLAN - READ
   // ═══════════════════════════════════════════════════════════════
 
-  /// Отримати збережений план (поточний/головний)
   Future<CareerPlanModel?> getCareerPlan() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString(_keyCareerPlan);
@@ -463,31 +415,25 @@ class StorageService {
     }
   }
 
-  /// Отримати план для конкретної цілі
   Future<CareerPlanModel?> getPlanForGoal(String goalId) async {
     return await _getPlanById(goalId);
   }
 
-  /// Зберегти план з хмари локально
   Future<void> savePlanFromCloud(CareerPlanModel plan) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCareerPlan, jsonEncode(plan.toJson()));
     await prefs.setInt(_keyMatchScore, plan.matchScore);
     await prefs.setString(_keyGapAnalysis, plan.gapAnalysis);
-
-    // Також зберігаємо в allPlans
     await _savePlanToAllPlans(plan);
 
     debugPrint('✅ Хмарний план збережено локально');
   }
 
-  /// Отримати match score
   Future<int> getMatchScore() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_keyMatchScore) ?? 0;
   }
 
-  /// Отримати gap analysis
   Future<String?> getGapAnalysis() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyGapAnalysis);
@@ -517,6 +463,12 @@ class StorageService {
     final plan = await getCareerPlan();
     if (plan == null) return;
 
+    // 🆕 Знаходимо крок щоб отримати stepNumber для синхронізації
+    final step = plan.steps.firstWhere(
+      (s) => s.id == stepId,
+      orElse: () => plan.steps.first,
+    );
+
     final updatedPlan = plan.updateStepStatus(stepId, status);
 
     // Оновлюємо статус напрямку якщо всі кроки виконані
@@ -540,10 +492,10 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCareerPlan, jsonEncode(finalPlan.toJson()));
 
-    // 🆕 Оновлюємо в allPlans
+    // Оновлюємо в allPlans
     await _savePlanToAllPlans(finalPlan);
 
-    // 🆕 Оновлюємо прогрес в списку цілей
+    // Оновлюємо прогрес в списку цілей
     final goalsList = await getGoalsList();
     final updatedGoalsList = goalsList.updateGoalProgress(
       finalPlan.goal.id,
@@ -552,15 +504,18 @@ class StorageService {
     );
     await _saveGoalsList(updatedGoalsList);
 
-    debugPrint('✅ Крок $stepId оновлено: ${status.name}');
+    debugPrint('✅ Крок $stepId (№${step.stepNumber}) оновлено: ${status.name}');
 
     // ═══════════════════════════════════════════════════════════════
-    // СИНХРОНІЗАЦІЯ СТАТУСУ З SUPABASE
+    // 🆕 СИНХРОНІЗАЦІЯ СТАТУСУ З SUPABASE (по stepNumber)
     // ═══════════════════════════════════════════════════════════════
     if (_supabase.isAuthenticated) {
       try {
-        await _supabase.updateStepStatus(stepId, status.value);
-        debugPrint('☁️ Статус синхронізовано з Supabase');
+        await _supabase.updateStepStatusByNumber(
+          stepNumber: step.stepNumber,
+          status: status.value,
+        );
+        debugPrint('☁️ Статус кроку #${step.stepNumber} синхронізовано з Supabase');
       } catch (e) {
         debugPrint('⚠️ Помилка синхронізації статусу: $e');
       }
@@ -571,14 +526,12 @@ class StorageService {
   // CLEAR DATA
   // ═══════════════════════════════════════════════════════════════
 
-  /// Очистити всі дані
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     debugPrint('🗑️ Всі дані очищено');
   }
 
-  /// Очистити тільки поточний план
   Future<void> clearPlan() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyCareerPlan);
@@ -588,7 +541,6 @@ class StorageService {
     debugPrint('🗑️ План очищено');
   }
 
-  /// Очистити всі цілі та плани
   Future<void> clearAllGoals() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyGoalsList);
@@ -598,7 +550,7 @@ class StorageService {
     await prefs.remove(_keyMatchScore);
     await prefs.remove(_keyGapAnalysis);
     await prefs.remove(_keyAssessmentComplete);
-    await prefs.remove(_keyChatHistory); // 🆕 Очищаємо історію чатів
+    await prefs.remove(_keyChatHistory);
     debugPrint('🗑️ Всі цілі та плани очищено');
   }
 
@@ -606,7 +558,6 @@ class StorageService {
   // DEBUG
   // ═══════════════════════════════════════════════════════════════
 
-  /// Вивести інформацію про збережені дані
   Future<void> debugPrintPlan() async {
     final plan = await getCareerPlan();
     if (plan == null) {
@@ -629,7 +580,6 @@ class StorageService {
     debugPrint('═══════════════════════════════════════');
   }
 
-  /// Вивести інформацію про всі цілі
   Future<void> debugPrintGoalsList() async {
     final goalsList = await getGoalsList();
     debugPrint('═══════════════════════════════════════');

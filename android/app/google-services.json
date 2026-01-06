@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "379834680294",
+    "project_id": "steps-96f64",
+    "storage_bucket": "steps-96f64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:379834680294:android:01ab58b951078805b08c27",
+        "android_client_info": {
+          "package_name": "ai.anantata.careercoach"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBvGLosP34V0Rwe1sylG-n_cRrR9dh9tJE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

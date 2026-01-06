@@ -8,8 +8,8 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 1.9.0 - UI покращення
-/// Дата: 24.12.2025
+/// Версія: 2.1.0 - Додано публічні методи для збереження/очищення чату
+/// Дата: 02.01.2026
 ///
 /// Виправлено:
 /// - P2 #40 - Іконка очищення чату → смітничок (delete_outline)
@@ -32,10 +32,10 @@ class ChatScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ChatScreenState createState() => ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final GeminiService _gemini = GeminiService();
@@ -59,6 +59,34 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // v2.1: Публічний метод - отримати чат як текст
+  String getChatAsText() {
+    if (_messages.isEmpty) return '';
+    
+    final buffer = StringBuffer();
+    buffer.writeln('💬 Чат з AI Коучем Anantata');
+    buffer.writeln('=' * 30);
+    buffer.writeln();
+    
+    for (final msg in _messages) {
+      final sender = msg.isUser ? '👤 Ви' : '🤖 AI Коуч';
+      final time = '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}';
+      buffer.writeln('[$time] $sender:');
+      buffer.writeln(msg.text);
+      buffer.writeln();
+    }
+    
+    buffer.writeln('=' * 30);
+    buffer.writeln('🚀 anantata.ai');
+    
+    return buffer.toString();
+  }
+
+  // v2.1: Публічний метод - очистити чат
+  void clearChatMessages() {
+    _clearChat();
   }
 
   // Баг #5: Безпечний вихід з екрану
@@ -355,9 +383,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // v2.0: AppBar прибрано - використовується спільний з home_screen
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: _buildAppBar(),
       body: Column(
         children: [
           Expanded(

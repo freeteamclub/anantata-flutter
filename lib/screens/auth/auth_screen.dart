@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран авторизації
-/// Версія: 1.4.0 - Виправлено deprecated withOpacity
-/// Дата: 24.12.2025
+/// Версія: 1.6.0 - SVG іконка Google
+/// Дата: 06.01.2026
 ///
-/// Виправлено:
+/// Що змінено:
+/// - Використано SVG іконку Google з assets/icons/google.svg
 /// - P3 #2 - Замінено withOpacity на withValues(alpha:) для Web сумісності
 /// - Баг #1 - Логотип більше не обрізається на великих екранах
 /// - Допрацювання #1 - Посилання на Політику конфіденційності
@@ -255,46 +257,33 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         child: _isLoading
             ? const SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppTheme.primaryColor,
-          ),
-        )
-            : Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Google logo icon
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Center(
-                child: Text(
-                  'G',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.primaryColor,
                 ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 🆕 SVG іконка Google
+                  SvgPicture.asset(
+                    'assets/icons/google.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Увійти через Google',
+                    style: TextStyle(
+                      fontFamily: 'NunitoSans',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Увійти через Google',
-              style: TextStyle(
-                fontFamily: 'NunitoSans',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
