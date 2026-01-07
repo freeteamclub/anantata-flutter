@@ -180,7 +180,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         title: const Text(
           'Профіль / Нагадування',
           style: TextStyle(
-            fontFamily: 'NunitoSans',
+            fontFamily: 'Roboto',
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -220,7 +220,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     return Text(
       title,
       style: const TextStyle(
-        fontFamily: 'Bitter',
+        fontFamily: 'Roboto',
         fontSize: 18,
         fontWeight: FontWeight.bold,
         color: AppTheme.textPrimary,
@@ -308,7 +308,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 Text(
                   title,
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: isEnabled ? AppTheme.textPrimary : Colors.grey,
@@ -317,7 +317,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 13,
                     color: Colors.grey[600],
                   ),
@@ -391,7 +391,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   const Text(
                     'Час нагадувань',
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
@@ -400,7 +400,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   Text(
                     'Коли надсилати сповіщення',
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 13,
                       color: Colors.grey[600],
                     ),
@@ -417,7 +417,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               child: Text(
                 _reminderTime,
                 style: const TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryColor,
@@ -456,7 +456,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 const Text(
                   'Частота',
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
@@ -465,7 +465,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 Text(
                   'Як часто нагадувати',
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 13,
                     color: Colors.grey[600],
                   ),
@@ -484,7 +484,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               underline: const SizedBox(),
               isDense: true,
               style: const TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.primaryColor,
@@ -602,7 +602,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   Text(
                     title,
                     style: const TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
@@ -611,7 +611,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 13,
                       color: Colors.grey[600],
                     ),

@@ -359,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Text(
                 'Гостьовий режим',
                 style: TextStyle(
-                  fontFamily: 'Bitter',
+                  fontFamily: 'Roboto',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
@@ -368,7 +368,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'Увійдіть для синхронізації',
                 style: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontSize: 13,
                   color: Colors.grey[600],
                 ),
@@ -398,7 +398,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 side: BorderSide(color: Colors.grey[300]!),
               ),
               textStyle: const TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -423,19 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: AppTheme.primaryColor.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: ClipOval(
-            child: avatarUrl != null && avatarUrl.isNotEmpty
-                ? Image.network(
-                    avatarUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.email,
-                      size: 28,
-                      color: AppTheme.primaryColor,
-                    ),
-                  )
-                : Icon(Icons.email, size: 28, color: AppTheme.primaryColor),
-          ),
+          child: Icon(Icons.email, size: 28, color: AppTheme.primaryColor),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -445,7 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 name,
                 style: const TextStyle(
-                  fontFamily: 'Bitter',
+                  fontFamily: 'Roboto',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
@@ -456,7 +444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 email,
                 style: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontSize: 13,
                   color: Colors.grey[600],
                 ),
@@ -474,7 +462,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           child: const Text(
             'Вийти',
-            style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13),
+            style: TextStyle(fontFamily: 'Roboto', fontSize: 13),
           ),
         ),
       ],
@@ -522,7 +510,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontFamily: 'Bitter',
+                      fontFamily: 'Roboto',
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary,
@@ -532,7 +520,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 13,
                       color: Colors.grey[600],
                     ),

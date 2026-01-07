@@ -334,7 +334,7 @@ class _PlanScreenState extends State<PlanScreen> {
             Text(
               'План ще не створено',
               style: TextStyle(
-                fontFamily: 'Bitter',
+                fontFamily: 'Roboto',
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[700],
@@ -346,7 +346,7 @@ class _PlanScreenState extends State<PlanScreen> {
             Text(
               'Пройдіть оцінювання, щоб отримати\nперсональний план з 100 кроками',
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 15,
                 color: Colors.grey[500],
                 height: 1.5,
@@ -370,7 +370,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   textStyle: const TextStyle(
-                    fontFamily: 'Akrobat',
+                    fontFamily: 'Roboto',
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),

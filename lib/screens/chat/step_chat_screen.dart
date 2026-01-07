@@ -346,7 +346,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
       title: Text(
         'Головна / Крок ${widget.step.stepNumber}',
         style: const TextStyle(
-          fontFamily: 'Bitter',
+          fontFamily: 'Roboto',
           fontSize: 18,
           fontWeight: FontWeight.bold,
           color: Colors.white,
@@ -391,7 +391,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
             child: Text(
               'Чат зберігається тільки на цьому пристрої.',
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 12,
                 color: Colors.orange[800],
               ),
@@ -423,7 +423,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
                   const Text(
                     'Увійти',
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
@@ -609,7 +609,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
                 Text(
                   widget.step.title,
                   style: const TextStyle(
-                    fontFamily: 'Bitter',
+                    fontFamily: 'Roboto',
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: AppTheme.textPrimary,
@@ -620,7 +620,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
                 Text(
                   widget.goalTitle,
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 12,
                     color: Colors.grey[600],
                   ),
@@ -720,7 +720,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
     return RichText(
       text: TextSpan(
         style: TextStyle(
-          fontFamily: 'NunitoSans',
+          fontFamily: 'Roboto',
           color: baseColor,
           fontSize: 14,
           height: 1.4,
@@ -798,7 +798,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
                 decoration: InputDecoration(
                   hintText: 'Напишіть повідомлення...',
                   hintStyle: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     color: Colors.grey[400],
                   ),
                   filled: true,

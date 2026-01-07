@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/telegram_service.dart';
 
 /// Екран прив'язки соцмереж
-/// Версія: 1.0.0
+/// Версія: 2.0.0
 /// Дата: 07.01.2026
 
 class SocialNetworksScreen extends StatefulWidget {
@@ -22,19 +23,34 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
 
   bool _isLoading = true;
   bool _isTelegramLoading = false;
+  bool _isSaving = false;
   TelegramLinkStatus? _telegramStatus;
   String? _pendingLinkCode;
+
+  // Контролери для полів соцмереж
+  final TextEditingController _link1Controller = TextEditingController();
+  final TextEditingController _link2Controller = TextEditingController();
+  final TextEditingController _link3Controller = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadStatuses();
+    _loadData();
   }
 
-  Future<void> _loadStatuses() async {
+  @override
+  void dispose() {
+    _link1Controller.dispose();
+    _link2Controller.dispose();
+    _link3Controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
     try {
+      // Завантаження Telegram статусу
       if (_supabase.isAuthenticated) {
         final status = await _telegram.getLinkStatus();
         if (mounted) {
@@ -45,12 +61,113 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
             }
           });
         }
+
+        // Завантаження соцмереж з Supabase
+        await _loadSocialLinksFromSupabase();
       }
+
+      // Завантаження з SharedPreferences (локальний кеш)
+      await _loadSocialLinksFromLocal();
     } catch (e) {
-      debugPrint('Error loading statuses: $e');
+      debugPrint('Error loading data: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadSocialLinksFromSupabase() async {
+    try {
+      final userId = _supabase.userId;
+      if (userId == null) return;
+
+      final response = await _supabase.client
+          .from('user_social_profiles')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (response != null && mounted) {
+        setState(() {
+          _link1Controller.text = response['social_link_1'] ?? '';
+          _link2Controller.text = response['social_link_2'] ?? '';
+          _link3Controller.text = response['social_link_3'] ?? '';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading social links from Supabase: $e');
+    }
+  }
+
+  Future<void> _loadSocialLinksFromLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Якщо поля порожні, завантажити з локального сховища
+      if (_link1Controller.text.isEmpty) {
+        _link1Controller.text = prefs.getString('social_link_1') ?? '';
+      }
+      if (_link2Controller.text.isEmpty) {
+        _link2Controller.text = prefs.getString('social_link_2') ?? '';
+      }
+      if (_link3Controller.text.isEmpty) {
+        _link3Controller.text = prefs.getString('social_link_3') ?? '';
+      }
+    } catch (e) {
+      debugPrint('Error loading social links from local: $e');
+    }
+  }
+
+  Future<void> _saveSocialLinks() async {
+    setState(() => _isSaving = true);
+
+    try {
+      final link1 = _link1Controller.text.trim();
+      final link2 = _link2Controller.text.trim();
+      final link3 = _link3Controller.text.trim();
+
+      // Зберегти локально
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('social_link_1', link1);
+      await prefs.setString('social_link_2', link2);
+      await prefs.setString('social_link_3', link3);
+
+      // Зберегти в Supabase (якщо авторизований)
+      if (_supabase.isAuthenticated) {
+        final userId = _supabase.userId;
+        if (userId != null) {
+          await _supabase.client.from('user_social_profiles').upsert({
+            'user_id': userId,
+            'social_link_1': link1.isEmpty ? null : link1,
+            'social_link_2': link2.isEmpty ? null : link2,
+            'social_link_3': link3.isEmpty ? null : link3,
+          }, onConflict: 'user_id');
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Збережено'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving social links: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Помилка збереження: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -237,26 +354,6 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
     }
   }
 
-  void _showComingSoonDialog(String network) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(Icons.construction, color: Colors.orange[700], size: 48),
-        title: Text('$network'),
-        content: const Text(
-          'Прив\'язка цієї соцмережі буде доступна в наступних версіях додатку.',
-          style: TextStyle(fontSize: 15),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Зрозуміло'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -270,7 +367,7 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
         title: const Text(
           'Профіль / Соцмережі',
           style: TextStyle(
-            fontFamily: 'Bitter',
+            fontFamily: 'Roboto',
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -300,7 +397,7 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
                           child: Text(
                             'Прив\'яжіть соцмережі для отримання сповіщень та синхронізації',
                             style: TextStyle(
-                              fontFamily: 'NunitoSans',
+                              fontFamily: 'Roboto',
                               fontSize: 14,
                               color: AppTheme.primaryColor,
                             ),
@@ -312,54 +409,144 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
                   const SizedBox(height: 24),
 
                   // Telegram
-                  _buildSocialItem(
-                    icon: Icons.telegram,
-                    title: 'Telegram',
-                    subtitle: _getTelegramSubtitle(),
-                    isConnected: _telegramStatus?.isLinked == true,
-                    isLoading: _isTelegramLoading,
-                    onConnect: _supabase.isAuthenticated ? _generateTelegramCode : null,
-                    onDisconnect: _telegramStatus?.isLinked == true ? _unlinkTelegram : null,
+                  _buildTelegramItem(),
+                  const SizedBox(height: 24),
+
+                  // Розділювач
+                  Divider(color: Colors.grey[300], thickness: 1),
+                  const SizedBox(height: 24),
+
+                  // Секція соціальних мереж
+                  Row(
+                    children: [
+                      Icon(Icons.share, color: AppTheme.primaryColor, size: 24),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Ваші соціальні мережі',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Instagram
-                  _buildSocialItem(
-                    icon: Icons.camera_alt,
-                    title: 'Instagram',
-                    subtitle: 'Скоро буде доступно',
-                    isConnected: false,
-                    isLoading: false,
-                    onConnect: () => _showComingSoonDialog('Instagram'),
-                    isComingSoon: true,
+                  Text(
+                    'Вкажіть профілі в соціальних мережах (X, Facebook, Instagram, LinkedIn, TikTok), де ви найбільше проводите час',
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Поле 1
+                  _buildLinkField(
+                    controller: _link1Controller,
+                    hint: 'Посилання 1',
+                    icon: Icons.link,
                   ),
                   const SizedBox(height: 12),
 
-                  // LinkedIn
-                  _buildSocialItem(
-                    icon: Icons.work,
-                    title: 'LinkedIn',
-                    subtitle: 'Скоро буде доступно',
-                    isConnected: false,
-                    isLoading: false,
-                    onConnect: () => _showComingSoonDialog('LinkedIn'),
-                    isComingSoon: true,
+                  // Поле 2
+                  _buildLinkField(
+                    controller: _link2Controller,
+                    hint: 'Посилання 2',
+                    icon: Icons.link,
                   ),
                   const SizedBox(height: 12),
 
-                  // Facebook
-                  _buildSocialItem(
-                    icon: Icons.facebook,
-                    title: 'Facebook',
-                    subtitle: 'Скоро буде доступно',
-                    isConnected: false,
-                    isLoading: false,
-                    onConnect: () => _showComingSoonDialog('Facebook'),
-                    isComingSoon: true,
+                  // Поле 3
+                  _buildLinkField(
+                    controller: _link3Controller,
+                    hint: 'Посилання 3',
+                    icon: Icons.link,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Кнопка Зберегти
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _saveSocialLinks,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save, size: 20),
+                      label: Text(
+                        _isSaving ? 'Збереження...' : 'Зберегти',
+                        style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildLinkField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.url,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            fontFamily: 'Roboto',
+            color: Colors.grey[400],
+          ),
+          prefixIcon: Icon(icon, color: AppTheme.primaryColor),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        style: const TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 15,
+        ),
+      ),
     );
   }
 
@@ -373,16 +560,9 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
     return 'Не підключено';
   }
 
-  Widget _buildSocialItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool isConnected,
-    required bool isLoading,
-    VoidCallback? onConnect,
-    VoidCallback? onDisconnect,
-    bool isComingSoon = false,
-  }) {
+  Widget _buildTelegramItem() {
+    final isConnected = _telegramStatus?.isLinked == true;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -405,17 +585,17 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
               color: AppTheme.primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppTheme.primaryColor, size: 26),
+            child: const Icon(Icons.telegram, color: Color(0xFF0088cc), size: 26),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Bitter',
+                const Text(
+                  'Telegram',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
@@ -423,9 +603,9 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  subtitle,
+                  _getTelegramSubtitle(),
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 13,
                     color: isConnected ? Colors.green[700] : Colors.grey[600],
                   ),
@@ -433,7 +613,7 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
               ],
             ),
           ),
-          if (isLoading)
+          if (_isTelegramLoading)
             const SizedBox(
               width: 24,
               height: 24,
@@ -457,7 +637,7 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
                       Text(
                         'Підключено',
                         style: TextStyle(
-                          fontFamily: 'NunitoSans',
+                          fontFamily: 'Roboto',
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.green[700],
@@ -466,35 +646,16 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
                     ],
                   ),
                 ),
-                if (onDisconnect != null) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: onDisconnect,
-                    child: Icon(Icons.close, color: Colors.grey[400], size: 20),
-                  ),
-                ],
-              ],
-            )
-          else if (isComingSoon)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Скоро',
-                style: TextStyle(
-                  fontFamily: 'NunitoSans',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[500],
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _unlinkTelegram,
+                  child: Icon(Icons.close, color: Colors.grey[400], size: 20),
                 ),
-              ),
+              ],
             )
           else
             ElevatedButton(
-              onPressed: onConnect,
+              onPressed: _supabase.isAuthenticated ? _generateTelegramCode : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
@@ -503,7 +664,7 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
               ),
               child: const Text(
                 'Підключити',
-                style: TextStyle(fontFamily: 'NunitoSans', fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(fontFamily: 'Roboto', fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
         ],

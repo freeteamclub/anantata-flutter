@@ -103,7 +103,7 @@ class _GoalScreenState extends State<GoalScreen> {
         title: const Text(
           'Моя ціль',
           style: TextStyle(
-            fontFamily: 'Bitter',
+            fontFamily: 'Roboto',
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -130,7 +130,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             'Ціль ще не встановлена',
             style: TextStyle(
-              fontFamily: 'NunitoSans',
+              fontFamily: 'Roboto',
               fontSize: 18,
               color: Colors.grey[600],
             ),
@@ -139,7 +139,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             'Пройдіть оцінювання, щоб отримати план',
             style: TextStyle(
-              fontFamily: 'NunitoSans',
+              fontFamily: 'Roboto',
               fontSize: 14,
               color: Colors.grey[400],
             ),
@@ -180,7 +180,7 @@ class _GoalScreenState extends State<GoalScreen> {
               label: const Text(
                 'Переглянути план',
                 style: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -205,7 +205,7 @@ class _GoalScreenState extends State<GoalScreen> {
               label: const Text(
                 'Пройти оцінювання',
                 style: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -268,7 +268,7 @@ class _GoalScreenState extends State<GoalScreen> {
                     const Text(
                       'Ваша ціль',
                       style: TextStyle(
-                        fontFamily: 'NunitoSans',
+                        fontFamily: 'Roboto',
                         color: Colors.white70,
                         fontSize: 14,
                       ),
@@ -287,7 +287,7 @@ class _GoalScreenState extends State<GoalScreen> {
                         child: const Text(
                           '⭐ Головна',
                           style: TextStyle(
-                            fontFamily: 'NunitoSans',
+                            fontFamily: 'Roboto',
                             color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -303,7 +303,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             _plan?.goal.title ?? 'Кар\'єрний розвиток',
             style: const TextStyle(
-              fontFamily: 'Bitter',
+              fontFamily: 'Roboto',
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -317,7 +317,7 @@ class _GoalScreenState extends State<GoalScreen> {
               Text(
                 'Цільовий дохід: ${_plan?.goal.targetSalary ?? "\$3,000-5,000"}',
                 style: const TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   color: Colors.white70,
                   fontSize: 14,
                 ),
@@ -353,7 +353,7 @@ class _GoalScreenState extends State<GoalScreen> {
           const Text(
             'Match Score',
             style: TextStyle(
-              fontFamily: 'NunitoSans',
+              fontFamily: 'Roboto',
               fontSize: 14,
               color: Colors.grey,
               fontWeight: FontWeight.w500,
@@ -367,7 +367,7 @@ class _GoalScreenState extends State<GoalScreen> {
               Text(
                 '$score',
                 style: TextStyle(
-                  fontFamily: 'Akrobat',
+                  fontFamily: 'Roboto',
                   fontSize: 64,
                   fontWeight: FontWeight.w900,
                   color: scoreColor,
@@ -378,7 +378,7 @@ class _GoalScreenState extends State<GoalScreen> {
                 child: Text(
                   '%',
                   style: TextStyle(
-                    fontFamily: 'Akrobat',
+                    fontFamily: 'Roboto',
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                     color: scoreColor,
@@ -402,7 +402,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             _getScoreDescription(score),
             style: TextStyle(
-              fontFamily: 'NunitoSans',
+              fontFamily: 'Roboto',
               fontSize: 14,
               color: Colors.grey[600],
             ),
@@ -438,7 +438,7 @@ class _GoalScreenState extends State<GoalScreen> {
               Text(
                 'Аналіз розриву',
                 style: TextStyle(
-                  fontFamily: 'Bitter',
+                  fontFamily: 'Roboto',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.primaryColor,
@@ -450,7 +450,7 @@ class _GoalScreenState extends State<GoalScreen> {
           Text(
             _plan?.gapAnalysis ?? 'Аналіз недоступний',
             style: TextStyle(
-              fontFamily: 'NunitoSans',
+              fontFamily: 'Roboto',
               fontSize: 15,
               color: Colors.grey[700],
               height: 1.5,
@@ -493,7 +493,7 @@ class _GoalScreenState extends State<GoalScreen> {
               const Text(
                 'Ваш прогрес',
                 style: TextStyle(
-                  fontFamily: 'Bitter',
+                  fontFamily: 'Roboto',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -507,7 +507,7 @@ class _GoalScreenState extends State<GoalScreen> {
                 child: Text(
                   '${progress.toStringAsFixed(0)}%',
                   style: const TextStyle(
-                    fontFamily: 'Akrobat',
+                    fontFamily: 'Roboto',
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                   ),
@@ -560,7 +560,7 @@ class _GoalScreenState extends State<GoalScreen> {
         Text(
           value,
           style: const TextStyle(
-            fontFamily: 'Akrobat',
+            fontFamily: 'Roboto',
             fontSize: 20,
             fontWeight: FontWeight.w900,
             color: AppTheme.textPrimary,
@@ -569,7 +569,7 @@ class _GoalScreenState extends State<GoalScreen> {
         Text(
           label,
           style: TextStyle(
-            fontFamily: 'NunitoSans',
+            fontFamily: 'Roboto',
             fontSize: 12,
             color: Colors.grey[600],
           ),

@@ -42,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   CareerPlanModel? _plan;
   String _userName = '';
   bool _isLoading = true;
+  bool _hasAutoNavigatedToAssessment = false;
   
   int? _expandedDirectionIndex;
 
@@ -88,6 +89,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _plan = plan;
       _isLoading = false;
     });
+
+    // Автоматично відкриваємо assessment, якщо план == null
+    if (_plan == null && !_hasAutoNavigatedToAssessment && _currentIndex == 0) {
+      _hasAutoNavigatedToAssessment = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _navigateToAssessment();
+      });
+    }
   }
 
   Future<void> _markStepDone(String stepId) async {
@@ -202,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       title: Text(
         title,
         style: const TextStyle(
-          fontFamily: 'Bitter',
+          fontFamily: 'Roboto',
           color: Colors.white,
           fontWeight: FontWeight.bold,
           fontSize: 20,
@@ -322,8 +331,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               childCount: _plan!.directions.length,
             ),
           ),
-          SliverToBoxAdapter(child: _buildNextBlockButton()),
           SliverToBoxAdapter(child: _buildDeleteGoalButton()),
+          SliverToBoxAdapter(child: _buildNextBlockButton()),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
@@ -446,14 +455,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               const Text(
                 'Ваш прогрес',
-                style: TextStyle(fontFamily: 'Bitter', fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                style: TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   '${progress.toStringAsFixed(0)}%',
-                  style: const TextStyle(fontFamily: 'Akrobat', color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                  style: const TextStyle(fontFamily: 'Roboto', color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
                 ),
               ),
             ],
@@ -471,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 12),
           Text(
             'Виконано $completedSteps з $totalSteps кроків',
-            style: TextStyle(fontFamily: 'NunitoSans', fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(fontFamily: 'Roboto', fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -851,12 +860,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             const Text(
               'Почніть свою подорож',
-              style: TextStyle(fontFamily: 'Bitter', fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+              style: TextStyle(fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 12),
             Text(
               'Пройдіть оцінювання, щоб отримати\nперсональний план з 100 кроками',
-              style: TextStyle(fontFamily: 'NunitoSans', fontSize: 15, color: Colors.grey[600], height: 1.5),
+              style: TextStyle(fontFamily: 'Roboto', fontSize: 15, color: Colors.grey[600], height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -871,7 +880,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontFamily: 'Akrobat', fontSize: 16, fontWeight: FontWeight.w700),
+                  textStyle: const TextStyle(fontFamily: 'Roboto', fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -930,7 +939,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Text(
               label,
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 12,
                 color: isSelected ? AppTheme.primaryColor : Colors.grey,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,

@@ -29,6 +29,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   GoalsListModel? _goalsList;
   bool _isLoading = true;
+  bool _hasAutoNavigated = false;
 
   @override
   void initState() {
@@ -45,6 +46,14 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       _goalsList = goalsList;
       _isLoading = false;
     });
+
+    // Автоматично відкриваємо assessment, якщо немає цілей
+    if ((_goalsList == null || _goalsList!.goals.isEmpty) && !_hasAutoNavigated) {
+      _hasAutoNavigated = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _addNewGoal();
+      });
+    }
   }
 
   Future<void> _setPrimaryGoal(String goalId) async {
@@ -355,7 +364,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         title: const Text(
           'Профіль / Моя ціль',
           style: TextStyle(
-            fontFamily: 'Bitter',
+            fontFamily: 'Roboto',
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -444,7 +453,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             Text(
               label,
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 12,
                 color: color,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
@@ -495,7 +504,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             const Text(
               'У вас ще немає цілей',
               style: TextStyle(
-                fontFamily: 'Bitter',
+                fontFamily: 'Roboto',
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -505,7 +514,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             Text(
               'Пройдіть оцінювання, щоб створити\nперсональний план розвитку',
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 16,
                 color: Colors.grey[600],
               ),
@@ -517,7 +526,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
               icon: const Icon(Icons.add),
               label: const Text(
                 'Створити першу ціль',
-                style: TextStyle(fontFamily: 'NunitoSans', fontWeight: FontWeight.w600),
+                style: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
@@ -556,7 +565,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             Text(
               goal.title,
               style: const TextStyle(
-                fontFamily: 'Bitter',
+                fontFamily: 'Roboto',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -570,7 +579,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Text(
                   goal.targetSalary,
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 14,
                     color: Colors.grey[700],
                     fontWeight: FontWeight.w500,
@@ -586,7 +595,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Text(
                   goal.formattedDate,
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 13,
                     color: Colors.grey[500],
                   ),
@@ -614,7 +623,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   Text(
                     '${goal.completedSteps}/${goal.totalSteps}',
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 13,
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
@@ -701,7 +710,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 13,
                     color: fgColor,
                     fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
@@ -754,7 +763,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 const Text(
                   'Додати нову ціль',
                   style: TextStyle(
-                    fontFamily: 'Bitter',
+                    fontFamily: 'Roboto',
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
@@ -764,7 +773,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Text(
                   '(доступно ще $availableSlots)',
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 14,
                     color: Colors.grey[500],
                   ),

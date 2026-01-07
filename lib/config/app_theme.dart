@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 /// Тема додатку Anantata
-/// Версія: 2.1.0 - Виправлено lightTheme, CardThemeData
-/// Дата: 14.12.2025
+/// Версія: 3.0.0 - Перехід на системний шрифт Roboto
+/// Дата: 07.01.2026
 ///
 /// Шрифти:
-/// - Bitter: Заголовки (H1, H2, H3, AppBar)
-/// - Akrobat: Акценти, кнопки, бейджі, бренд
-/// - NunitoSans: Основний текст, описи
+/// - Roboto: Системний шрифт Material Design для всього тексту
 
 class AppTheme {
   // ═══════════════════════════════════════════════════════════════
@@ -42,14 +40,13 @@ class AppTheme {
   // ШРИФТИ
   // ═══════════════════════════════════════════════════════════════
 
-  /// Шрифт для заголовків
-  static const String fontHeading = 'Bitter';
+  /// Системний шрифт (Roboto на Android, SF Pro на iOS)
+  static const String fontFamily = 'Roboto';
 
-  /// Шрифт для акцентів (кнопки, бейджі)
-  static const String fontAccent = 'Akrobat';
-
-  /// Шрифт для основного тексту
-  static const String fontBody = 'NunitoSans';
+  /// Аліаси для сумісності
+  static const String fontHeading = fontFamily;
+  static const String fontAccent = fontFamily;
+  static const String fontBody = fontFamily;
 
   // ═══════════════════════════════════════════════════════════════
   // ТЕКСТОВІ СТИЛІ

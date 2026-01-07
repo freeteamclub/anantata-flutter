@@ -1,7 +1,7 @@
 name: anantata
 description: "Anantata Career Coach - AI-powered career development"
 publish_to: 'none'
-version: 2.0.0+20
+version: 2.6.0+26
 
 environment:
   sdk: ^3.10.3
@@ -57,26 +57,4 @@ flutter:
     - assets/font/
     - .env
 
-  fonts:
-    - family: Bitter
-      fonts:
-        - asset: assets/font/Bitter-Regular.ttf
-        - asset: assets/font/Bitter-SemiBold.ttf
-          weight: 600
-        - asset: assets/font/Bitter-Bold.ttf
-          weight: 700
-
-    - family: Akrobat
-      fonts:
-        - asset: assets/font/Akrobat Black 900.otf
-          weight: 900
-
-    - family: NunitoSans
-      fonts:
-        - asset: assets/font/nunitosansregular.ttf
-        - asset: assets/font/nunitosanssemibold.ttf
-          weight: 600
-        - asset: assets/font/nunitosansbold.ttf
-          weight: 700
-        - asset: assets/font/nunitosansblack.ttf
-          weight: 900
+  # Використовуємо системний шрифт Roboto (Material Design default)

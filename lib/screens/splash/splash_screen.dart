@@ -85,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  fontFamily: 'Bitter',
+                  fontFamily: 'Roboto',
                 ),
               ),
               const SizedBox(height: 8),
@@ -96,7 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
                   fontSize: 16,
                   // P3 #2: Виправлено withOpacity → withValues
                   color: Colors.white.withValues(alpha: 0.8),
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                 ),
               ),
               const SizedBox(height: 48),

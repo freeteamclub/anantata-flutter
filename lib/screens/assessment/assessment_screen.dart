@@ -34,7 +34,7 @@ class AssessmentScreen extends StatefulWidget {
 
 class _AssessmentScreenState extends State<AssessmentScreen> {
   // Допрацювання #7: Стан для показу вступного екрану
-  bool _showIntro = true;
+  bool _showIntro = false;
 
   int _currentQuestionIndex = 0;
   final Map<int, String> _answers = {};
@@ -398,7 +398,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         Text(
           'Кар\'єрна оцінка',
           style: TextStyle(
-            fontFamily: 'Bitter',
+            fontFamily: 'Roboto',
             fontSize: titleFontSize,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary,
@@ -411,7 +411,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         Text(
           'Дізнайтеся свій потенціал та отримайте\nперсональний план розвитку',
           style: TextStyle(
-            fontFamily: 'NunitoSans',
+            fontFamily: 'Roboto',
             fontSize: subtitleFontSize,
             color: Colors.grey[600],
             height: 1.5,

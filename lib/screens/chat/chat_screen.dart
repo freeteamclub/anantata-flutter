@@ -433,7 +433,7 @@ class ChatScreenState extends State<ChatScreen> {
                 const Text(
                   'AI Коуч',
                   style: TextStyle(
-                    fontFamily: 'Bitter',
+                    fontFamily: 'Roboto',
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -443,7 +443,7 @@ class ChatScreenState extends State<ChatScreen> {
                 Text(
                   hasGoalContext ? 'Обговорення цілі' : 'Онлайн',
                   style: const TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 12,
                     color: Colors.white70,
                   ),
@@ -525,7 +525,7 @@ class ChatScreenState extends State<ChatScreen> {
                   ? SelectableText(
                 message.text,
                 style: const TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontSize: 15,
                   color: Colors.white,
                   height: 1.4,
@@ -536,7 +536,7 @@ class ChatScreenState extends State<ChatScreen> {
               Text(
                 _formatTime(message.timestamp),
                 style: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontSize: 11,
                   color: isUser ? Colors.white60 : Colors.grey[400],
                 ),
@@ -556,7 +556,7 @@ class ChatScreenState extends State<ChatScreen> {
       TextSpan(
         children: spans,
         style: const TextStyle(
-          fontFamily: 'NunitoSans',
+          fontFamily: 'Roboto',
           fontSize: 15,
           color: AppTheme.textPrimary,
           height: 1.5,
@@ -624,7 +624,7 @@ class ChatScreenState extends State<ChatScreen> {
                 Text(
                   'Швидкі дії',
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[600],
@@ -642,7 +642,7 @@ class ChatScreenState extends State<ChatScreen> {
                 Text(
                   _isQuickActionsExpanded ? 'Згорнути' : 'Розгорнути',
                   style: TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 11,
                     color: Colors.grey[500],
                   ),
@@ -718,7 +718,7 @@ class ChatScreenState extends State<ChatScreen> {
                 child: Text(
                   action.text,
                   style: const TextStyle(
-                    fontFamily: 'NunitoSans',
+                    fontFamily: 'Roboto',
                     fontSize: 12,
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.w500,
@@ -762,7 +762,7 @@ class ChatScreenState extends State<ChatScreen> {
             Text(
               'AI друкує...',
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 13,
                 color: Colors.grey[500],
               ),
@@ -817,13 +817,13 @@ class ChatScreenState extends State<ChatScreen> {
               minLines: 1,
               textCapitalization: TextCapitalization.sentences,
               style: const TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 15,
               ),
               decoration: InputDecoration(
                 hintText: 'Введіть повідомлення...',
                 hintStyle: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   color: Colors.grey[400],
                 ),
                 filled: true,
@@ -879,11 +879,11 @@ class ChatScreenState extends State<ChatScreen> {
       builder: (context) => AlertDialog(
         title: const Text(
           'Очистити чат?',
-          style: TextStyle(fontFamily: 'Bitter'),
+          style: TextStyle(fontFamily: 'Roboto'),
         ),
         content: const Text(
           'Всі повідомлення будуть видалені.',
-          style: TextStyle(fontFamily: 'NunitoSans'),
+          style: TextStyle(fontFamily: 'Roboto'),
         ),
         actions: [
           TextButton(

@@ -113,10 +113,6 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               const Spacer(flex: 2),
 
-              // Логотип
-              _buildLogo(context),
-              const SizedBox(height: 32),
-
               // Заголовок
               _buildTitle(),
               const SizedBox(height: 16),
@@ -189,9 +185,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildTitle() {
     return const Text(
-      'Anantata',
+      '100StepsCareer',
       style: TextStyle(
-        fontFamily: 'Bitter',
+        fontFamily: 'Roboto',
         fontSize: 36,
         fontWeight: FontWeight.bold,
         color: AppTheme.primaryColor,
@@ -204,7 +200,7 @@ class _AuthScreenState extends State<AuthScreen> {
       'Ваш персональний AI кар\'єрний коуч.\nСтворіть план розвитку з 100 кроками.',
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontFamily: 'NunitoSans',
+        fontFamily: 'Roboto',
         fontSize: 16,
         color: Colors.grey[600],
         height: 1.5,
@@ -229,7 +225,7 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Text(
               _errorMessage!,
               style: TextStyle(
-                fontFamily: 'NunitoSans',
+                fontFamily: 'Roboto',
                 fontSize: 14,
                 color: Colors.red[700],
               ),
@@ -277,7 +273,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const Text(
                     'Увійти через Google',
                     style: TextStyle(
-                      fontFamily: 'NunitoSans',
+                      fontFamily: 'Roboto',
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -294,7 +290,7 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Text(
         'Продовжити без входу',
         style: TextStyle(
-          fontFamily: 'NunitoSans',
+          fontFamily: 'Roboto',
           fontSize: 14,
           color: Colors.grey[600],
           decoration: TextDecoration.underline,
@@ -309,7 +305,7 @@ class _AuthScreenState extends State<AuthScreen> {
       textAlign: TextAlign.center,
       text: TextSpan(
         style: TextStyle(
-          fontFamily: 'NunitoSans',
+          fontFamily: 'Roboto',
           fontSize: 12,
           color: Colors.grey[500],
           height: 1.4,
