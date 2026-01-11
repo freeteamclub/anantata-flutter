@@ -1,11 +1,11 @@
 {
-    "name": "anantata",
-    "short_name": "anantata",
+    "name": "100StepsCareer",
+    "short_name": "100Steps",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Anantata Career Coach - AI-powered career development",
+    "background_color": "#413659",
+    "theme_color": "#413659",
+    "description": "AI кар'єрний коуч. Створіть персональний план розвитку з 100 кроками.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

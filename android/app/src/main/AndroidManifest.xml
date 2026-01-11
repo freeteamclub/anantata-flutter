@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="anantata"
+        android:label="100StepsCareer"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

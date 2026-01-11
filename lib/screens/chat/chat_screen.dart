@@ -66,7 +66,7 @@ class ChatScreenState extends State<ChatScreen> {
     if (_messages.isEmpty) return '';
     
     final buffer = StringBuffer();
-    buffer.writeln('💬 Чат з AI Коучем Anantata');
+    buffer.writeln('💬 Чат з AI Коучем 100StepsCareer');
     buffer.writeln('=' * 30);
     buffer.writeln();
     
@@ -79,7 +79,7 @@ class ChatScreenState extends State<ChatScreen> {
     }
     
     buffer.writeln('=' * 30);
-    buffer.writeln('🚀 anantata.ai');
+    buffer.writeln('🚀 100steps.career');
     
     return buffer.toString();
   }
@@ -383,16 +383,16 @@ class ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // v2.0: AppBar прибрано - використовується спільний з home_screen
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           Expanded(
             child: _buildMessagesList(),
           ),
-          _buildQuickActions(),
           if (_isTyping) _buildTypingIndicator(),
+          _buildQuickActions(),
           _buildInputArea(),
         ],
       ),
@@ -598,7 +598,7 @@ class ChatScreenState extends State<ChatScreen> {
   Widget _buildQuickActions() {
     final quickActionsRow1 = [
       QuickAction(icon: Icons.arrow_forward, text: 'Що робити далі?'),
-      QuickAction(icon: Icons.help_outline, text: 'Поясни поточний крок'),
+      QuickAction(icon: Icons.help_outline, text: 'Поясни цей крок'),
     ];
 
     final quickActionsRow2 = [
@@ -891,12 +891,28 @@ class ChatScreenState extends State<ChatScreen> {
             child: const Text('Скасувати'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              
+              // Баг #9: Видаляємо з Supabase якщо авторизований
+              if (_supabase.isAuthenticated) {
+                try {
+                  await _supabase.client
+                      .from('chat_messages')
+                      .delete()
+                      .eq('user_id', _supabase.userId!)
+                      .isFilter('goal_id', null);
+                  debugPrint('✅ Чат очищено в Supabase');
+                } catch (e) {
+                  debugPrint('❌ Помилка очищення чату: $e');
+                }
+              }
+              
+              // Очищаємо локально та додаємо привітання
               setState(() {
                 _messages.clear();
               });
-              _loadChatHistory();
+              _addBotMessage(_getGreetingMessage(), saveToCloud: false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,

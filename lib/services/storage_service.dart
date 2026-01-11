@@ -6,8 +6,8 @@ import 'package:anantata/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Сервіс для локального збереження даних
-/// Версія: 4.2.0 - Виправлено синхронізацію статусів кроків з Supabase
-/// Дата: 05.01.2026
+/// Версія: 4.3.0 - Додано завантаження цілей з Supabase якщо локально пусто
+/// Дата: 11.01.2026
 
 class StorageService {
   static const String _keyUserName = 'user_name';
@@ -163,25 +163,106 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString(_keyGoalsList);
 
-    if (jsonStr == null) {
-      final oldPlan = await getCareerPlan();
-      if (oldPlan != null) {
-        final summary = GoalSummary.fromCareerPlan(oldPlan);
-        final goalsList = GoalsListModel(
-          goals: [summary.copyWith(isPrimary: true)],
-          primaryGoalId: summary.id,
-        );
-        await _saveGoalsList(goalsList);
-        return goalsList;
+    // Якщо локально є дані - повертаємо їх
+    if (jsonStr != null) {
+      try {
+        final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final localGoals = GoalsListModel.fromJson(json);
+        if (localGoals.goals.isNotEmpty) {
+          debugPrint('✅ Завантажено ${localGoals.count} цілей локально');
+          return localGoals;
+        }
+      } catch (e) {
+        debugPrint('❌ Помилка читання списку цілей: $e');
       }
-      return GoalsListModel.empty();
     }
 
+    // 🆕 Якщо локально пусто І користувач авторизований - завантажуємо з Supabase
+    if (_supabase.isAuthenticated) {
+      debugPrint('☁️ Локально пусто, завантажуємо з Supabase...');
+      final cloudGoals = await _loadGoalsFromCloud();
+      if (cloudGoals.goals.isNotEmpty) {
+        await _saveGoalsList(cloudGoals);
+        return cloudGoals;
+      }
+    }
+
+    // Перевіряємо старий формат (міграція)
+    final oldPlan = await getCareerPlan();
+    if (oldPlan != null) {
+      final summary = GoalSummary.fromCareerPlan(oldPlan);
+      final goalsList = GoalsListModel(
+        goals: [summary.copyWith(isPrimary: true)],
+        primaryGoalId: summary.id,
+      );
+      await _saveGoalsList(goalsList);
+      return goalsList;
+    }
+
+    return GoalsListModel.empty();
+  }
+
+  /// 🆕 Завантажити цілі з Supabase та конвертувати в GoalsListModel
+  Future<GoalsListModel> _loadGoalsFromCloud() async {
     try {
-      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return GoalsListModel.fromJson(json);
+      final goalsData = await _supabase.getAllGoals();
+      if (goalsData.isEmpty) {
+        debugPrint('📭 Supabase: цілей не знайдено');
+        return GoalsListModel.empty();
+      }
+
+      final List<GoalSummary> goals = [];
+      String? primaryGoalId;
+
+      for (final goalData in goalsData) {
+        final goalId = goalData['id'] as String;
+        final isActive = goalData['is_active'] as bool? ?? false;
+        
+        // Завантажуємо повний план для підрахунку прогресу
+        final stepsData = await _supabase.getSteps(goalId);
+        final completedSteps = stepsData.where((s) => s['status'] == 'done').length;
+        final totalSteps = stepsData.length;
+        final progress = totalSteps > 0 ? (completedSteps / totalSteps * 100) : 0.0;
+
+        final summary = GoalSummary(
+          id: goalId,
+          title: goalData['title'] as String? ?? 'Кар\'єрна ціль',
+          targetSalary: goalData['target_salary'] as String? ?? '',
+          matchScore: goalData['match_score'] as int? ?? 0,
+          gapAnalysis: goalData['gap_analysis'] as String? ?? '',
+          progress: progress,
+          completedSteps: completedSteps,
+          totalSteps: totalSteps,
+          isPrimary: isActive,
+          createdAt: DateTime.tryParse(goalData['created_at'] as String? ?? '') ?? DateTime.now(),
+        );
+
+        goals.add(summary);
+
+        if (isActive) {
+          primaryGoalId = goalId;
+        }
+
+        // 🆕 Завантажуємо повний план та зберігаємо локально
+        final fullPlan = await _supabase.loadPlanFromCloud();
+        if (fullPlan != null && fullPlan.goal.id == goalId) {
+          await _savePlanToAllPlans(fullPlan);
+          if (isActive) {
+            await _saveCurrentPlan(fullPlan);
+          }
+        }
+      }
+
+      // Якщо немає активної цілі - робимо першу активною
+      if (primaryGoalId == null && goals.isNotEmpty) {
+        primaryGoalId = goals.first.id;
+        goals[0] = goals.first.copyWith(isPrimary: true);
+      }
+
+      debugPrint('✅ Завантажено ${goals.length} цілей з Supabase');
+      return GoalsListModel(goals: goals, primaryGoalId: primaryGoalId);
     } catch (e) {
-      debugPrint('❌ Помилка читання списку цілей: $e');
+      debugPrint('❌ Помилка завантаження цілей з Supabase: $e');
       return GoalsListModel.empty();
     }
   }

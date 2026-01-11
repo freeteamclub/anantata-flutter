@@ -101,7 +101,7 @@ class _GoalScreenState extends State<GoalScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Моя ціль',
+          'Профіль / Моя ціль / Аналіз',
           style: TextStyle(
             fontFamily: 'Roboto',
             color: Colors.white,
@@ -165,10 +165,6 @@ class _GoalScreenState extends State<GoalScreen> {
 
           // Gap Analysis
           _buildGapAnalysisCard(),
-          const SizedBox(height: 20),
-
-          // Статистика
-          _buildStatsCard(),
           const SizedBox(height: 24),
 
           // Кнопка переглянути план - ВИПРАВЛЕНО: відкриває PlanScreen
@@ -178,7 +174,7 @@ class _GoalScreenState extends State<GoalScreen> {
               onPressed: _navigateToPlan,
               icon: const Icon(Icons.assignment_outlined),
               label: const Text(
-                'Переглянути план',
+                'Перейти до 100 кроків',
                 style: TextStyle(
                   fontFamily: 'Roboto',
                   fontWeight: FontWeight.w600,
@@ -188,31 +184,6 @@ class _GoalScreenState extends State<GoalScreen> {
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Кнопка пройти оцінювання
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _startAssessment,
-              icon: const Icon(Icons.refresh),
-              label: const Text(
-                'Пройти оцінювання',
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: AppTheme.primaryColor),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -273,27 +244,6 @@ class _GoalScreenState extends State<GoalScreen> {
                         fontSize: 14,
                       ),
                     ),
-                    if (_plan?.goal.isPrimary == true)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          '⭐ Головна',
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -351,7 +301,7 @@ class _GoalScreenState extends State<GoalScreen> {
       child: Column(
         children: [
           const Text(
-            'Match Score',
+            'Відповідність цілі',
             style: TextStyle(
               fontFamily: 'Roboto',
               fontSize: 14,

@@ -5,8 +5,8 @@ import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Gemini AI
 /// Синхронізовано з Kotlin версією
-/// Версія: 2.4.0 - Оновлено на Gemini 3 Flash Preview
-/// Дата: 21.12.2025
+/// Версія: 2.5.0 - Ребрендинг на 100StepsCareer
+/// Дата: 11.01.2026
 ///
 /// Допрацювання:
 /// - #17 - Оновлено модель з gemini-2.0-flash на gemini-3-flash-preview
@@ -650,7 +650,7 @@ $message
       return response.text ?? 'Немає відповіді.';
     } catch (e) {
       print('❌ Помилка чату: $e');
-      return 'Помилка: $e';
+      return 'Виникла помилка. Спробуйте ще раз.';
     }
   }
 

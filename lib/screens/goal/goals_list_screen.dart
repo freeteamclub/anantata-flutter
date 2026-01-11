@@ -11,8 +11,8 @@ import 'package:anantata/screens/goal/goal_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 
 /// Екран "Мої цілі" — управління до 3 цілей
-/// Версія: 1.3.0 - Додано нижнє меню навігації
-/// Дата: 23.12.2025
+/// Версія: 1.4.0 - Виправлено автоматичне відкриття assessment
+/// Дата: 11.01.2026
 ///
 /// Виправлено:
 /// - Баг #4 - Додано BottomNavigationBar для консистентності
@@ -29,7 +29,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   GoalsListModel? _goalsList;
   bool _isLoading = true;
-  bool _hasAutoNavigated = false;
 
   @override
   void initState() {
@@ -47,13 +46,9 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       _isLoading = false;
     });
 
-    // Автоматично відкриваємо assessment, якщо немає цілей
-    if ((_goalsList == null || _goalsList!.goals.isEmpty) && !_hasAutoNavigated) {
-      _hasAutoNavigated = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _addNewGoal();
-      });
-    }
+    // 🆕 Виправлення: НЕ відкривати assessment автоматично
+    // Користувач сам натисне "Створити першу ціль" якщо хоче
+    debugPrint('📋 Завантажено цілей: ${goalsList.count}');
   }
 
   Future<void> _setPrimaryGoal(String goalId) async {
@@ -135,17 +130,17 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   void _shareGoal(GoalSummary goal) {
     final shareText = '''
-🎯 Моя ціль в Anantata
+🎯 Моя ціль в 100StepsCareer
 
 📌 ${goal.title}
 💰 Цільова зарплата: ${goal.targetSalary}
 📊 Match Score: ${goal.matchScore}%
 📈 Прогрес: ${goal.completedSteps}/${goal.totalSteps} кроків виконано
 
-Створи свій план на anantata.ai 🚀
+Створи свій план на 100steps.career 🚀
 ''';
 
-    Share.share(shareText, subject: 'Моя ціль в Anantata');
+    Share.share(shareText, subject: 'Моя ціль в 100StepsCareer');
   }
 
   /// Завантажити план у форматі MD
@@ -179,14 +174,14 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
       // Зберігаємо файл
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'anantata_plan_${DateTime.now().millisecondsSinceEpoch}.md';
+      final fileName = '100steps_plan_${DateTime.now().millisecondsSinceEpoch}.md';
       final file = File('${directory.path}/$fileName');
       await file.writeAsString(mdContent);
 
       // Ділимося файлом
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'Мій план Anantata',
+        subject: 'Мій план 100StepsCareer',
       );
 
     } catch (e) {
@@ -206,7 +201,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     final buffer = StringBuffer();
 
     // Заголовок
-    buffer.writeln('# 🎯 Мій кар\'єрний план - Anantata');
+    buffer.writeln('# 🎯 Мій кар\'єрний план - 100StepsCareer');
     buffer.writeln();
     buffer.writeln('---');
     buffer.writeln();
@@ -264,7 +259,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     // Футер
     buffer.writeln('---');
     buffer.writeln();
-    buffer.writeln('*Згенеровано в [Anantata](https://anantata.ai) — ${DateTime.now().toString().substring(0, 16)}*');
+    buffer.writeln('*Згенеровано в [100StepsCareer](https://100steps.career) — ${DateTime.now().toString().substring(0, 16)}*');
 
     return buffer.toString();
   }
@@ -638,7 +633,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.visibility,
-                    label: 'Результат',
+                    label: 'Аналіз',
                     onTap: () => _showGoalResults(goal),
                   ),
                 ),

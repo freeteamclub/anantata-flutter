@@ -34,7 +34,7 @@ class AssessmentScreen extends StatefulWidget {
 
 class _AssessmentScreenState extends State<AssessmentScreen> {
   // Допрацювання #7: Стан для показу вступного екрану
-  bool _showIntro = false;
+  bool _showIntro = true;
 
   int _currentQuestionIndex = 0;
   final Map<int, String> _answers = {};

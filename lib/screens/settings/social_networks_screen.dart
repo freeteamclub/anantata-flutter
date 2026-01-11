@@ -207,95 +207,135 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0088cc).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+        // Баг #7: Відцентрований заголовок
+        title: Center(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0088cc).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.telegram,
+                  color: Color(0xFF0088cc),
+                  size: 32,
+                ),
               ),
-              child: const Icon(
-                Icons.telegram,
-                color: Color(0xFF0088cc),
-                size: 24,
+              const SizedBox(height: 12),
+              const Text(
+                'Прив\'язати Telegram',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(width: 12),
-            const Text('Прив\'язати Telegram'),
-          ],
+            ],
+          ),
         ),
+        // Баг #7: Відцентрований контент з правильними шрифтами
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Відкрий бота та надішли цей код:',
-              style: TextStyle(fontSize: 15),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 15,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: code));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('✅ Код скопійовано!'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      code,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace',
-                        letterSpacing: 4,
-                        color: AppTheme.primaryColor,
-                      ),
+            // Баг #7: Відцентрований блок з кодом
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: code));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Код скопійовано!'),
+                      duration: Duration(seconds: 1),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.copy, color: Colors.grey[600], size: 20),
-                  ],
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        code,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Roboto',
+                          letterSpacing: 4,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(Icons.copy, color: Colors.grey[600], size: 20),
+                    ],
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'Код дійсний 15 хвилин',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Або просто натисни кнопку нижче:',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Закрити'),
+            child: const Text(
+              'Закрити',
+              style: TextStyle(fontFamily: 'Roboto'),
+            ),
           ),
+          // Баг #6: Спочатку відкриваємо URL, потім закриваємо діалог
           ElevatedButton.icon(
             onPressed: () async {
               final url = Uri.parse(_telegram.getBotLinkWithCode(code));
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
+              // Баг #6: Спочатку відкриваємо URL
+              final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+              // Потім закриваємо діалог
+              if (context.mounted) {
+                Navigator.pop(context);
               }
-              if (context.mounted) Navigator.pop(context);
+              // Якщо не вдалося відкрити - показуємо помилку
+              if (!launched && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('❗ Не вдалося відкрити Telegram. Скопіюйте код та відкрийте бота вручну.'),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
             },
             icon: const Icon(Icons.telegram, size: 20),
-            label: const Text('Відкрити бота'),
+            label: const Text(
+              'Відкрити бота',
+              style: TextStyle(fontFamily: 'Roboto'),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0088cc),
               foregroundColor: Colors.white,

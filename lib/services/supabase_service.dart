@@ -5,8 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Supabase
-/// Версія: 2.4.0 - Додано підтримку FCM токенів та налаштувань сповіщень
-/// Дата: 05.01.2026
+/// Версія: 2.5.0 - Додано метод getAllGoals() для завантаження всіх цілей
+/// Дата: 11.01.2026
 
 class SupabaseService {
   static SupabaseService? _instance;
@@ -249,6 +249,25 @@ class SupabaseService {
     } catch (e) {
       debugPrint('❌ Помилка отримання цілі: $e');
       return null;
+    }
+  }
+
+  /// 🆕 Отримати ВСІ цілі користувача з Supabase
+  Future<List<Map<String, dynamic>>> getAllGoals() async {
+    if (!isAuthenticated) return [];
+
+    try {
+      final response = await client
+          .from('goals')
+          .select()
+          .eq('user_id', userId!)
+          .order('created_at', ascending: false);
+
+      debugPrint('☁️ Завантажено ${response.length} цілей з Supabase');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('❌ Помилка отримання всіх цілей: $e');
+      return [];
     }
   }
 
