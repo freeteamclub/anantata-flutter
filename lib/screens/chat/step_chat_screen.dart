@@ -9,8 +9,8 @@ import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран чату для допомоги по конкретному кроку
-/// Версія: 1.3.0 - Оновлений AppBar "Головна / Крок N"
-/// Дата: 07.01.2026
+/// Версія: 1.5.0 - Виправлено URL
+/// Дата: 18.01.2026
 ///
 /// Зміни v1.3.0:
 /// - AppBar тепер показує "Головна / Крок N" (глобальний номер)
@@ -495,7 +495,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
     }
 
     buffer.writeln('=' * 30);
-    buffer.writeln('🚀 100steps.career');
+    buffer.writeln('🚀 career.100steps.ai');
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));
     ScaffoldMessenger.of(context).showSnackBar(

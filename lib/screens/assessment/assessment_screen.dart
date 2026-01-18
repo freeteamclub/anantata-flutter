@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/data/assessment_questions.dart';
 
-/// Екран кар'єрного оцінювання v2.6
+/// Екран кар'єрного оцінювання v2.7
 /// 15 питань з прогрес-баром та валідацією
-/// Версія: 2.6 - Підтримка landscape mode
-/// Дата: 24.12.2025
+/// Версія: 2.7 - Баг #5 виправлено: кнопка зафіксована внизу
+/// Дата: 18.01.2026
 ///
 /// Виправлено:
+/// - P2 #5 - Кнопка "Почати оцінювання" зафіксована внизу, без зайвого скролу
 /// - P3 #6 - Intro екран адаптований для landscape mode (горизонтальна орієнтація)
 /// - Баг #9 - Fallback Navigator.pop() коли onBack не передано
 /// - Баг #1 - Збільшено кнопку та SafeArea для Android Go
@@ -311,6 +312,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   }
 
   // P3 #6: Оновлений вступний екран з підтримкою landscape
+  // Баг #5: Кнопка зафіксована внизу, без зайвого скролу
   Widget _buildIntroScreen() {
     // P3 #6: Визначаємо орієнтацію екрану
     final orientation = MediaQuery.of(context).orientation;
@@ -319,12 +321,12 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     // P3 #6: Адаптивні розміри для landscape
-    final iconSize = isLandscape ? 80.0 : 120.0;
-    final iconInnerSize = isLandscape ? 40.0 : 56.0;
-    final titleFontSize = isLandscape ? 24.0 : 28.0;
-    final subtitleFontSize = isLandscape ? 14.0 : 16.0;
-    final verticalSpacing = isLandscape ? 16.0 : 32.0;
-    final smallSpacing = isLandscape ? 8.0 : 16.0;
+    final iconSize = isLandscape ? 80.0 : 100.0;
+    final iconInnerSize = isLandscape ? 40.0 : 48.0;
+    final titleFontSize = isLandscape ? 24.0 : 26.0;
+    final subtitleFontSize = isLandscape ? 14.0 : 15.0;
+    final verticalSpacing = isLandscape ? 16.0 : 24.0;
+    final smallSpacing = isLandscape ? 8.0 : 12.0;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -333,34 +335,97 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.close, color: Colors.grey[600]),
-          onPressed: _exitScreen, // Баг #9: Використовуємо універсальний метод
+          onPressed: _exitScreen,
         ),
       ),
-      // P3 #6: Загортаємо в SingleChildScrollView для landscape
+      // Баг #5: Використовуємо Column з Expanded для контенту + фіксована кнопка внизу
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isLandscape ? 48 : 24,
-            vertical: isLandscape ? 8 : 24,
+        child: isLandscape
+            ? SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
+                child: _buildLandscapeIntroContent(
+                  iconSize: iconSize,
+                  iconInnerSize: iconInnerSize,
+                  titleFontSize: titleFontSize,
+                  subtitleFontSize: subtitleFontSize,
+                  verticalSpacing: verticalSpacing,
+                  smallSpacing: smallSpacing,
+                ),
+              )
+            : Column(
+                children: [
+                  // Контент з можливістю скролу якщо потрібно
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: _buildPortraitIntroContent(
+                        iconSize: iconSize,
+                        iconInnerSize: iconInnerSize,
+                        titleFontSize: titleFontSize,
+                        subtitleFontSize: subtitleFontSize,
+                        verticalSpacing: verticalSpacing,
+                        smallSpacing: smallSpacing,
+                      ),
+                    ),
+                  ),
+                  // Баг #5: Кнопка завжди внизу, видима
+                  _buildIntroBottomButton(),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // Баг #5: Окремий віджет для кнопки внизу intro екрану
+  Widget _buildIntroBottomButton() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-          child: isLandscape
-              ? _buildLandscapeIntroContent(
-            iconSize: iconSize,
-            iconInnerSize: iconInnerSize,
-            titleFontSize: titleFontSize,
-            subtitleFontSize: subtitleFontSize,
-            verticalSpacing: verticalSpacing,
-            smallSpacing: smallSpacing,
-          )
-              : _buildPortraitIntroContent(
-            iconSize: iconSize,
-            iconInnerSize: iconInnerSize,
-            titleFontSize: titleFontSize,
-            subtitleFontSize: subtitleFontSize,
-            verticalSpacing: verticalSpacing,
-            smallSpacing: smallSpacing,
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _startAssessment,
+              icon: const Icon(Icons.play_arrow_rounded, size: 24),
+              label: const Text(
+                'Почати оцінювання',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 2,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            'Ваші відповіді зберігаються локально',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -439,44 +504,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           subtitle: 'Отримаєте детальний план розвитку',
         ),
 
-        SizedBox(height: verticalSpacing * 1.5),
-
-        // Кнопка "Почати"
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
-            onPressed: _startAssessment,
-            icon: const Icon(Icons.play_arrow_rounded, size: 24),
-            label: const Text(
-              'Почати оцінювання',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 2,
-            ),
-          ),
-        ),
+        // Баг #5: Кнопка винесена в _buildIntroBottomButton()
         SizedBox(height: smallSpacing),
-
-        // Додаткова інформація
-        Text(
-          'Ваші відповіді зберігаються локально',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[500],
-          ),
-        ),
-
-        SizedBox(height: verticalSpacing),
       ],
     );
   }

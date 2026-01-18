@@ -12,13 +12,15 @@ import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/chat/step_chat_screen.dart';
 
-/// Головний екран додатку v6.0
-/// Версія: 6.0
-/// Дата: 07.01.2026
+/// Головний екран додатку v6.2
+/// Версія: 6.2
+/// Дата: 19.01.2026
 ///
-/// Зміни v6.0:
-/// - Динамічний AppBar (логотип для Головна/Помічник, текст для Профіль)
-/// - Глобальна нумерація кроків 1-100 (замість 1-10 в кожному напрямку)
+/// Зміни v6.2:
+/// - Баг #2: Нормалізація нумерації кроків (index-based замість AI)
+///
+/// Зміни v6.1:
+/// - ChatScreen з embedded: true (без подвійного хедера)
 ///
 /// Зміни v5.3:
 /// - Прибрано дублюючий intro екран
@@ -284,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 0:
         return _buildHomeContent();
       case 1:
-        return ChatScreen(key: _chatKey);
+        return ChatScreen(key: _chatKey, embedded: true); // 🆕 Вбудовано - без AppBar
       case 2:
         return ProfileScreen(onNavigateToTab: _navigateToTab);
       default:
@@ -487,8 +489,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildDirectionCard(DirectionModel direction, int index) {
-    final isExpanded = _expandedDirectionIndex == index;
+  Widget _buildDirectionCard(DirectionModel direction, int directionIndex) {
+    final isExpanded = _expandedDirectionIndex == directionIndex;
     final steps = _plan!.getStepsForDirection(direction.id);
     final progress = _plan!.getDirectionProgress(direction.id);
     final doneCount = steps.where((s) => s.status == ItemStatus.done).length;
@@ -508,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Column(
         children: [
           InkWell(
-            onTap: () => setState(() => _expandedDirectionIndex = isExpanded ? null : index),
+            onTap: () => setState(() => _expandedDirectionIndex = isExpanded ? null : directionIndex),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -572,7 +574,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               separatorBuilder: (context, index) => const Divider(height: 1, indent: 60),
               itemBuilder: (context, stepIndex) {
                 final step = steps[stepIndex];
-                return _buildStepItem(step);
+                // 🆕 v6.2: Обчислюємо глобальний номер кроку на основі позиції
+                // directionIndex (0-9) × 10 + stepIndex (0-9) + 1 = 1-100
+                final globalStepNumber = (directionIndex * 10) + stepIndex + 1;
+                return _buildStepItem(step, globalStepNumber);
               },
             ),
           ],
@@ -581,8 +586,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // 🆕 Глобальна нумерація кроків (stepNumber замість localNumber)
-  Widget _buildStepItem(StepModel step) {
+  // 🆕 v6.2: Додано параметр displayNumber для коректної нумерації
+  Widget _buildStepItem(StepModel step, int displayNumber) {
     final isDone = step.status == ItemStatus.done;
 
     return Padding(
@@ -614,9 +619,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🆕 Глобальний номер кроку (1-100)
+                // 🆕 v6.2: Використовуємо displayNumber замість step.stepNumber
                 Text(
-                  'Крок ${step.stepNumber}',
+                  'Крок $displayNumber',
                   style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 3),

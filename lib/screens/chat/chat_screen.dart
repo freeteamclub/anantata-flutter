@@ -8,10 +8,11 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 2.1.0 - Додано публічні методи для збереження/очищення чату
-/// Дата: 02.01.2026
+/// Версія: 2.4.0 - Баг #8: збереження історії для гостя
+/// Дата: 18.01.2026
 ///
 /// Виправлено:
+/// - P1 #8 - Збереження історії чату для гостя (локально)
 /// - P2 #40 - Іконка очищення чату → смітничок (delete_outline)
 /// - P3 #30 - "Швидкі дії" вирівняно з повідомленнями чату
 /// - Баг #3 - Офлайн помилка до оцінювання тепер показує user-friendly текст
@@ -24,11 +25,13 @@ import 'package:anantata/services/supabase_service.dart';
 class ChatScreen extends StatefulWidget {
   final String? goalId;
   final String? goalTitle;
+  final bool embedded; // 🆕 Якщо true - не показувати AppBar (вбудовано в HomeScreen)
 
   const ChatScreen({
     super.key,
     this.goalId,
     this.goalTitle,
+    this.embedded = false,
   });
 
   @override
@@ -79,7 +82,7 @@ class ChatScreenState extends State<ChatScreen> {
     }
     
     buffer.writeln('=' * 30);
-    buffer.writeln('🚀 100steps.career');
+    buffer.writeln('🚀 career.100steps.ai');
     
     return buffer.toString();
   }
@@ -110,11 +113,15 @@ class ChatScreenState extends State<ChatScreen> {
       _plan = plan;
     });
 
+    // Визначаємо ключ для завантаження
+    final chatKey = widget.goalId ?? 'general_chat';
+
     if (_supabase.isAuthenticated) {
+      // Авторизований - завантажуємо з Supabase
       try {
         final history = await _supabase.getChatHistory(
           limit: 50,
-          goalId: null,
+          goalId: widget.goalId,
         );
         if (history.isNotEmpty) {
           setState(() {
@@ -129,24 +136,62 @@ class ChatScreenState extends State<ChatScreen> {
           return;
         }
       } catch (e) {
-        debugPrint('❌ Помилка завантаження історії чату: $e');
+        debugPrint('❌ Помилка завантаження історії з Supabase: $e');
+      }
+    } else {
+      // 🆕 Баг #8: Гість - завантажуємо локально
+      try {
+        final localHistory = await _storage.getLocalChatHistory(chatKey);
+        if (localHistory.isNotEmpty) {
+          setState(() {
+            _messages.clear();
+            _messages.addAll(localHistory.map((msg) => ChatMessage(
+              text: msg['text'] as String,
+              isUser: msg['is_user'] as bool,
+              timestamp: DateTime.parse(msg['created_at'] as String),
+            )));
+          });
+          _scrollToBottom();
+          debugPrint('✅ Завантажено ${localHistory.length} повідомлень локально (гість)');
+          return;
+        }
+      } catch (e) {
+        debugPrint('❌ Помилка локального завантаження: $e');
       }
     }
 
+    // Якщо історії немає - показуємо привітання
     await Future.delayed(const Duration(milliseconds: 500));
     _addBotMessage(_getGreetingMessage(), saveToCloud: false);
   }
 
-  Future<void> _saveToCloud(String text, bool isUser) async {
+  /// 🆕 Баг #8: Зберегти повідомлення (в хмару або локально)
+  Future<void> _saveMessage(String text, bool isUser) async {
+    // Визначаємо ключ для зберігання
+    final chatKey = widget.goalId ?? 'general_chat';
+
     if (_supabase.isAuthenticated) {
+      // Авторизований - зберігаємо в Supabase
       try {
         await _supabase.saveChatMessage(
           text: text,
           isUser: isUser,
-          goalId: null,
+          goalId: widget.goalId,
         );
       } catch (e) {
-        debugPrint('❌ Помилка збереження повідомлення: $e');
+        debugPrint('❌ Помилка збереження в Supabase: $e');
+      }
+    } else {
+      // 🆕 Баг #8: Гість - зберігаємо локально
+      try {
+        await _storage.saveLocalChatMessage(
+          goalId: chatKey,
+          text: text,
+          isUser: isUser,
+        );
+        debugPrint('💾 Повідомлення збережено локально (гість)');
+      } catch (e) {
+        debugPrint('❌ Помилка локального збереження: $e');
       }
     }
   }
@@ -204,7 +249,7 @@ class ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     if (saveToCloud) {
-      _saveToCloud(text, false);
+      _saveMessage(text, false);
     }
   }
 
@@ -218,7 +263,7 @@ class ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    _saveToCloud(text, true);
+    _saveMessage(text, true);
   }
 
   void _scrollToBottom() {
@@ -385,7 +430,7 @@ class ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: _buildAppBar(),
+      appBar: widget.embedded ? null : _buildAppBar(), // 🆕 Не показувати AppBar якщо embedded
       body: Column(
         children: [
           Expanded(
@@ -894,21 +939,39 @@ class ChatScreenState extends State<ChatScreen> {
             onPressed: () async {
               Navigator.pop(context);
               
-              // Баг #9: Видаляємо з Supabase якщо авторизований
+              // Визначаємо ключ для очищення
+              final chatKey = widget.goalId ?? 'general_chat';
+              
               if (_supabase.isAuthenticated) {
+                // Баг #9: Видаляємо з Supabase
                 try {
-                  await _supabase.client
+                  var query = _supabase.client
                       .from('chat_messages')
                       .delete()
-                      .eq('user_id', _supabase.userId!)
-                      .isFilter('goal_id', null);
+                      .eq('user_id', _supabase.userId!);
+                  
+                  if (widget.goalId != null) {
+                    query = query.eq('goal_id', widget.goalId!);
+                  } else {
+                    query = query.isFilter('goal_id', null);
+                  }
+                  
+                  await query;
                   debugPrint('✅ Чат очищено в Supabase');
                 } catch (e) {
-                  debugPrint('❌ Помилка очищення чату: $e');
+                  debugPrint('❌ Помилка очищення в Supabase: $e');
+                }
+              } else {
+                // 🆕 Баг #8: Гість - очищаємо локально
+                try {
+                  await _storage.clearLocalChatHistory(chatKey);
+                  debugPrint('✅ Чат очищено локально (гість)');
+                } catch (e) {
+                  debugPrint('❌ Помилка локального очищення: $e');
                 }
               }
               
-              // Очищаємо локально та додаємо привітання
+              // Очищаємо та додаємо привітання
               setState(() {
                 _messages.clear();
               });

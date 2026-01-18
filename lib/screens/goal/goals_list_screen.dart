@@ -11,8 +11,8 @@ import 'package:anantata/screens/goal/goal_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 
 /// Екран "Мої цілі" — управління до 3 цілей
-/// Версія: 1.4.0 - Виправлено автоматичне відкриття assessment
-/// Дата: 11.01.2026
+/// Версія: 1.5.0 - Виправлено URL на career.100steps.ai
+/// Дата: 18.01.2026
 ///
 /// Виправлено:
 /// - Баг #4 - Додано BottomNavigationBar для консистентності
@@ -137,7 +137,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 📊 Match Score: ${goal.matchScore}%
 📈 Прогрес: ${goal.completedSteps}/${goal.totalSteps} кроків виконано
 
-Створи свій план на 100steps.career 🚀
+Створи свій план на career.100steps.ai 🚀
 ''';
 
     Share.share(shareText, subject: 'Моя ціль в 100StepsCareer');
@@ -259,7 +259,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     // Футер
     buffer.writeln('---');
     buffer.writeln();
-    buffer.writeln('*Згенеровано в [100StepsCareer](https://100steps.career) — ${DateTime.now().toString().substring(0, 16)}*');
+    buffer.writeln('*Згенеровано в [100StepsCareer](https://career.100steps.ai) — ${DateTime.now().toString().substring(0, 16)}*');
 
     return buffer.toString();
   }

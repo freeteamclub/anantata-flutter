@@ -5,8 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Supabase
-/// Версія: 2.5.0 - Додано метод getAllGoals() для завантаження всіх цілей
-/// Дата: 11.01.2026
+/// Версія: 2.6.0 - Баг #9 і #13: видалення цілі + сортування напрямків
+/// Дата: 18.01.2026
 
 class SupabaseService {
   static SupabaseService? _instance;
@@ -305,6 +305,41 @@ class SupabaseService {
     }
   }
 
+  /// 🆕 Видалити ціль та всі пов'язані дані (Баг #9)
+  Future<bool> deleteGoal(String goalId) async {
+    if (!isAuthenticated) {
+      debugPrint('❌ Користувач не авторизований');
+      return false;
+    }
+
+    try {
+      // 1. Видалити кроки
+      await client.from('steps').delete().eq('goal_id', goalId);
+      debugPrint('🗑️ Кроки видалено');
+
+      // 2. Видалити напрямки
+      await client.from('directions').delete().eq('goal_id', goalId);
+      debugPrint('🗑️ Напрямки видалено');
+
+      // 3. Видалити повідомлення чату
+      await client.from('chat_messages').delete().eq('goal_id', goalId);
+      debugPrint('🗑️ Повідомлення чату видалено');
+
+      // 4. Видалити відповіді оцінювання
+      await client.from('assessment_answers').delete().eq('goal_id', goalId);
+      debugPrint('🗑️ Відповіді оцінювання видалено');
+
+      // 5. Видалити саму ціль
+      await client.from('goals').delete().eq('id', goalId);
+      debugPrint('✅ Ціль $goalId видалено з Supabase');
+
+      return true;
+    } catch (e) {
+      debugPrint('❌ Помилка видалення цілі: $e');
+      return false;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // DIRECTIONS (НАПРЯМКИ)
   // ═══════════════════════════════════════════════════════════════
@@ -569,6 +604,9 @@ class SupabaseService {
         status: ItemStatusExtension.fromString(d['status'] as String? ?? 'pending'),
         blockNumber: d['block_number'] as int? ?? 1,
       )).toList();
+
+      // 🆕 Баг #13: Сортування напрямків по directionNumber
+      directions.sort((a, b) => a.directionNumber.compareTo(b.directionNumber));
 
       final steps = stepsData.map((s) => StepModel(
         id: s['id'] as String,

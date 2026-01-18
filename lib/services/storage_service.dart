@@ -6,8 +6,8 @@ import 'package:anantata/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Сервіс для локального збереження даних
-/// Версія: 4.3.0 - Додано завантаження цілей з Supabase якщо локально пусто
-/// Дата: 11.01.2026
+/// Версія: 4.4.0 - Баг #9: синхронізація видалення цілі з Supabase
+/// Дата: 18.01.2026
 
 class StorageService {
   static const String _keyUserName = 'user_name';
@@ -316,7 +316,19 @@ class StorageService {
       await clearPlan();
     }
 
-    debugPrint('🗑️ Ціль видалено: $goalId');
+    debugPrint('🗑️ Ціль видалено локально: $goalId');
+
+    // 🆕 Баг #9: Синхронізація видалення з Supabase
+    if (_supabase.isAuthenticated) {
+      try {
+        final success = await _supabase.deleteGoal(goalId);
+        if (success) {
+          debugPrint('☁️ Ціль видалено з Supabase');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Помилка видалення з Supabase: $e');
+      }
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
