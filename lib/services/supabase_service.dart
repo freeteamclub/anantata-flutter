@@ -526,7 +526,7 @@ class SupabaseService {
   // ПОВНА СИНХРОНІЗАЦІЯ ПЛАНУ
   // ═══════════════════════════════════════════════════════════════
 
-  /// Зберегти повний план в Supabase
+  /// Зберегти повний план в Supabase (з upsert для цілі та очисткою дублікатів)
   Future<bool> saveFullPlan(CareerPlanModel plan) async {
     if (!isAuthenticated) {
       debugPrint('❌ Користувач не авторизований');
@@ -534,17 +534,44 @@ class SupabaseService {
     }
 
     try {
-      // 1. Зберегти ціль
-      final goalId = await saveGoal(
-        title: plan.goal.title,
-        targetSalary: plan.goal.targetSalary,
-        matchScore: plan.matchScore,
-        gapAnalysis: plan.gapAnalysis,
-      );
+      // 1. Перевіряємо чи ціль вже існує (за title + user_id)
+      String? goalId;
+      final existingGoals = await client
+          .from('goals')
+          .select('id')
+          .eq('user_id', userId!)
+          .eq('title', plan.goal.title)
+          .limit(1);
 
-      if (goalId == null) return false;
+      if (existingGoals.isNotEmpty) {
+        // Ціль вже існує — оновлюємо
+        goalId = existingGoals.first['id'] as String;
+        await client.from('goals').update({
+          'target_salary': plan.goal.targetSalary,
+          'match_score': plan.matchScore,
+          'gap_analysis': plan.gapAnalysis,
+          'is_active': true,
+          'status': 'active',
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', goalId);
+        debugPrint('✅ Ціль оновлено: $goalId');
+      } else {
+        // Нова ціль — створюємо
+        goalId = await saveGoal(
+          title: plan.goal.title,
+          targetSalary: plan.goal.targetSalary,
+          matchScore: plan.matchScore,
+          gapAnalysis: plan.gapAnalysis,
+        );
+        if (goalId == null) return false;
+      }
 
-      // 2. Зберегти напрямки
+      // 2. Видалити старі кроки та напрямки для цієї цілі
+      await client.from('steps').delete().eq('goal_id', goalId);
+      await client.from('directions').delete().eq('goal_id', goalId);
+      debugPrint('🗑️ Старі напрямки та кроки видалено для цілі $goalId');
+
+      // 3. Зберегти нові напрямки
       final directionIds = await saveDirections(goalId, plan.directions);
 
       // Створити мапу direction_number -> direction_id
@@ -553,7 +580,7 @@ class SupabaseService {
         dirIdMap[plan.directions[i].directionNumber] = directionIds[i];
       }
 
-      // 3. Зберегти кроки
+      // 4. Зберегти нові кроки
       await saveSteps(goalId, dirIdMap, plan.steps);
 
       debugPrint('✅ Повний план синхронізовано з Supabase');
@@ -605,8 +632,12 @@ class SupabaseService {
         blockNumber: d['block_number'] as int? ?? 1,
       )).toList();
 
-      // 🆕 Баг #13: Сортування напрямків по directionNumber
+      // Сортування напрямків по directionNumber
       directions.sort((a, b) => a.directionNumber.compareTo(b.directionNumber));
+
+      // Дедуплікація напрямків по directionNumber (залишаємо перший)
+      final seenDirNumbers = <int>{};
+      directions.retainWhere((d) => seenDirNumbers.add(d.directionNumber));
 
       final steps = stepsData.map((s) => StepModel(
         id: s['id'] as String,
@@ -619,6 +650,13 @@ class SupabaseService {
         status: ItemStatusExtension.fromString(s['status'] as String? ?? 'pending'),
         blockNumber: s['block_number'] as int? ?? 1,
       )).toList();
+
+      // Дедуплікація кроків по stepNumber (залишаємо перший)
+      final seenStepNumbers = <int>{};
+      steps.retainWhere((s) => seenStepNumbers.add(s.stepNumber));
+
+      // Сортування кроків
+      steps.sort((a, b) => a.stepNumber.compareTo(b.stepNumber));
 
       final plan = CareerPlanModel(
         goal: goal,
@@ -633,6 +671,81 @@ class SupabaseService {
       return plan;
     } catch (e) {
       debugPrint('❌ Помилка завантаження плану: $e');
+      return null;
+    }
+  }
+
+  /// Завантажити план для конкретної цілі (за goalId та goalData)
+  Future<CareerPlanModel?> loadPlanForGoal(String goalId, Map<String, dynamic> goalData) async {
+    if (!isAuthenticated) return null;
+
+    try {
+      // 1. Отримати напрямки
+      final directionsData = await getDirections(goalId);
+
+      // 2. Отримати кроки
+      final stepsData = await getSteps(goalId);
+
+      // 3. Конвертувати в моделі
+      final goal = GoalModel(
+        id: goalId,
+        userId: userId!,
+        title: goalData['title'] as String,
+        targetSalary: goalData['target_salary'] as String? ?? '',
+        isPrimary: true,
+        status: goalData['status'] as String? ?? 'active',
+        createdAt: DateTime.parse(goalData['created_at'] as String),
+      );
+
+      final directions = directionsData.map((d) => DirectionModel(
+        id: d['id'] as String,
+        goalId: goalId,
+        directionNumber: d['direction_number'] as int,
+        title: d['title'] as String,
+        description: d['description'] as String? ?? '',
+        status: ItemStatusExtension.fromString(d['status'] as String? ?? 'pending'),
+        blockNumber: d['block_number'] as int? ?? 1,
+      )).toList();
+
+      // Сортування напрямків по directionNumber
+      directions.sort((a, b) => a.directionNumber.compareTo(b.directionNumber));
+
+      // Дедуплікація напрямків по directionNumber (залишаємо перший)
+      final seenDirNumbers = <int>{};
+      directions.retainWhere((d) => seenDirNumbers.add(d.directionNumber));
+
+      final steps = stepsData.map((s) => StepModel(
+        id: s['id'] as String,
+        goalId: goalId,
+        directionId: s['direction_id'] as String,
+        stepNumber: s['step_number'] as int,
+        localNumber: s['local_number'] as int,
+        title: s['title'] as String,
+        description: s['description'] as String? ?? '',
+        status: ItemStatusExtension.fromString(s['status'] as String? ?? 'pending'),
+        blockNumber: s['block_number'] as int? ?? 1,
+      )).toList();
+
+      // Дедуплікація кроків по stepNumber (залишаємо перший)
+      final seenStepNumbers = <int>{};
+      steps.retainWhere((s) => seenStepNumbers.add(s.stepNumber));
+
+      // Сортування кроків
+      steps.sort((a, b) => a.stepNumber.compareTo(b.stepNumber));
+
+      final plan = CareerPlanModel(
+        goal: goal,
+        matchScore: goalData['match_score'] as int? ?? 0,
+        gapAnalysis: goalData['gap_analysis'] as String? ?? '',
+        directions: directions,
+        steps: steps,
+        currentBlock: goalData['current_block'] as int? ?? 1,
+      );
+
+      debugPrint('✅ План для цілі $goalId завантажено: ${directions.length} напрямків, ${steps.length} кроків');
+      return plan;
+    } catch (e) {
+      debugPrint('❌ Помилка завантаження плану для цілі $goalId: $e');
       return null;
     }
   }

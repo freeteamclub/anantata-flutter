@@ -99,7 +99,7 @@ class SyncService {
     if (cloudPlan != null && localPlan == null) {
       // Є хмарний, немає локального → зберігаємо хмарний локально
       debugPrint('📥 Використовуємо хмарний план');
-      // TODO: Зберегти cloudPlan локально
+      await _storage.savePlanFromCloud(cloudPlan);
       return cloudPlan;
     } else if (cloudPlan == null && localPlan != null) {
       // Є локальний, немає хмарного → завантажуємо локальний в хмару

@@ -243,9 +243,9 @@ class StorageService {
           primaryGoalId = goalId;
         }
 
-        // 🆕 Завантажуємо повний план та зберігаємо локально
-        final fullPlan = await _supabase.loadPlanFromCloud();
-        if (fullPlan != null && fullPlan.goal.id == goalId) {
+        // Завантажуємо повний план для конкретної цілі та зберігаємо локально
+        final fullPlan = await _supabase.loadPlanForGoal(goalId, goalData);
+        if (fullPlan != null) {
           await _savePlanToAllPlans(fullPlan);
           if (isActive) {
             await _saveCurrentPlan(fullPlan);
