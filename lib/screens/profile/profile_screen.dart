@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
+import 'package:anantata/services/sync_service.dart';
 import 'package:anantata/services/telegram_service.dart';
 import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/screens/assessment/generation_screen.dart';
@@ -110,6 +111,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _supabase.signInWithGoogle();
 
       if (mounted) {
+        // Перевірка конфлікту планів після входу
+        await _handleSyncConflict();
+
         setState(() {});
         _loadTelegramStatus();
         _loadNotificationSettings();
@@ -133,6 +137,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _handleSyncConflict() async {
+    final sync = SyncService();
+    final result = await sync.checkConflict();
+
+    switch (result.conflict) {
+      case SyncConflict.both:
+        if (!mounted) return;
+        await _showConflictDialog(sync, result);
+        break;
+
+      case SyncConflict.cloudOnly:
+        await sync.applyCloudPlan(result.cloudPlan!);
+        break;
+
+      case SyncConflict.localOnly:
+        await sync.applyLocalPlan(result.localPlan!);
+        break;
+
+      case SyncConflict.none:
+        break;
+    }
+  }
+
+  Future<void> _showConflictDialog(SyncService sync, SyncConflictResult result) async {
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.cloud_sync, color: Color(0xFF6C63FF), size: 48),
+        title: const Text('Знайдено план в акаунті'),
+        content: Text(
+          'В акаунті вже є збережена ціль «${result.cloudGoalTitle}».\n\n'
+          'Поточне локальне тестування буде замінено даними з акаунту.',
+          style: const TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'keepLocal'),
+            child: const Text('Зберегти локальний'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, 'useCloud'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C63FF),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Зрозуміло'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == 'keepLocal') {
+      await sync.applyLocalPlan(result.localPlan!);
+    } else {
+      await sync.applyCloudPlan(result.cloudPlan!);
     }
   }
 

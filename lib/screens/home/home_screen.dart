@@ -5,16 +5,18 @@ import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
-import 'package:anantata/services/sync_service.dart';
 import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/screens/assessment/generation_screen.dart';
 import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/chat/step_chat_screen.dart';
 
-/// Головний екран додатку v6.2
-/// Версія: 6.2
-/// Дата: 19.01.2026
+/// Головний екран додатку v6.3
+/// Версія: 6.3
+/// Дата: 25.01.2026
+///
+/// Зміни v6.3:
+/// - Баг #14: Збереження хмарного плану локально при логіні
 ///
 /// Зміни v6.2:
 /// - Баг #2: Нормалізація нумерації кроків (index-based замість AI)
@@ -37,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _previousIndex = 0;
   final StorageService _storage = StorageService();
   final SupabaseService _supabase = SupabaseService();
-  final SyncService _sync = SyncService();
 
   final GlobalKey<ChatScreenState> _chatKey = GlobalKey<ChatScreenState>();
 
@@ -72,15 +73,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() => _isLoading = true);
 
     final name = await _storage.getUserName();
-    var plan = await _storage.getCareerPlan();
-
-    if (_supabase.isAuthenticated && plan == null) {
-      final cloudPlan = await _sync.syncPlanFromCloud();
-      if (cloudPlan != null) {
-        plan = cloudPlan;
-        debugPrint('☁️ План завантажено з хмари');
-      }
-    }
+    final plan = await _storage.getCareerPlan();
 
     final displayName = _supabase.isAuthenticated
         ? (_supabase.userName ?? name ?? 'Користувач')

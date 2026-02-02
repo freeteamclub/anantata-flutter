@@ -3,9 +3,27 @@ import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
+/// Тип конфлікту між локальним і хмарним планами
+enum SyncConflict { none, localOnly, cloudOnly, both }
+
+/// Результат перевірки конфлікту
+class SyncConflictResult {
+  final SyncConflict conflict;
+  final String? cloudGoalTitle;
+  final CareerPlanModel? cloudPlan;
+  final CareerPlanModel? localPlan;
+
+  SyncConflictResult({
+    required this.conflict,
+    this.cloudGoalTitle,
+    this.cloudPlan,
+    this.localPlan,
+  });
+}
+
 /// Сервіс синхронізації даних між локальним сховищем і Supabase
-/// Версія: 1.0.0
-/// Дата: 14.12.2025
+/// Версія: 2.0.0 — Додано checkConflict() та діалог конфлікту
+/// Дата: 03.02.2026
 
 class SyncService {
   static final SyncService _instance = SyncService._internal();
@@ -82,6 +100,58 @@ class SyncService {
     }
   }
 
+  /// Перевірити тип конфлікту між локальним і хмарним планами
+  /// Не змінює дані — лише визначає стан
+  Future<SyncConflictResult> checkConflict() async {
+    if (!isAuthenticated) {
+      return SyncConflictResult(conflict: SyncConflict.none);
+    }
+
+    debugPrint('🔍 Перевірка конфлікту планів...');
+
+    final localPlan = await _storage.getCareerPlan();
+    final cloudPlan = await syncPlanFromCloud();
+
+    if (cloudPlan != null && localPlan != null) {
+      debugPrint('⚠️ Конфлікт: є і локальний, і хмарний плани');
+      return SyncConflictResult(
+        conflict: SyncConflict.both,
+        cloudGoalTitle: cloudPlan.goal.title,
+        cloudPlan: cloudPlan,
+        localPlan: localPlan,
+      );
+    } else if (cloudPlan != null) {
+      debugPrint('☁️ Тільки хмарний план');
+      return SyncConflictResult(
+        conflict: SyncConflict.cloudOnly,
+        cloudGoalTitle: cloudPlan.goal.title,
+        cloudPlan: cloudPlan,
+      );
+    } else if (localPlan != null) {
+      debugPrint('📱 Тільки локальний план');
+      return SyncConflictResult(
+        conflict: SyncConflict.localOnly,
+        localPlan: localPlan,
+      );
+    }
+
+    debugPrint('📭 Планів не знайдено');
+    return SyncConflictResult(conflict: SyncConflict.none);
+  }
+
+  /// Замінити локальний план на хмарний
+  Future<CareerPlanModel?> applyCloudPlan(CareerPlanModel cloudPlan) async {
+    debugPrint('📥 Заміна локального плану на хмарний...');
+    await _storage.savePlanFromCloud(cloudPlan);
+    return cloudPlan;
+  }
+
+  /// Завантажити локальний план у хмару (перезаписати хмарний)
+  Future<void> applyLocalPlan(CareerPlanModel localPlan) async {
+    debugPrint('📤 Завантаження локального плану в хмару...');
+    await syncPlanToCloud(localPlan);
+  }
+
   /// Повна синхронізація при вході
   /// Логіка: якщо в хмарі є план - використовуємо його
   Future<CareerPlanModel?> syncOnLogin() async {
@@ -89,32 +159,29 @@ class SyncService {
 
     debugPrint('🔄 Синхронізація при вході...');
 
-    // 1. Отримуємо локальний план
-    final localPlan = await _storage.getCareerPlan();
+    final result = await checkConflict();
 
-    // 2. Отримуємо хмарний план
-    final cloudPlan = await syncPlanFromCloud();
+    switch (result.conflict) {
+      case SyncConflict.cloudOnly:
+        debugPrint('📥 Використовуємо хмарний план');
+        await _storage.savePlanFromCloud(result.cloudPlan!);
+        return result.cloudPlan;
 
-    // 3. Визначаємо який план використовувати
-    if (cloudPlan != null && localPlan == null) {
-      // Є хмарний, немає локального → зберігаємо хмарний локально
-      debugPrint('📥 Використовуємо хмарний план');
-      await _storage.savePlanFromCloud(cloudPlan);
-      return cloudPlan;
-    } else if (cloudPlan == null && localPlan != null) {
-      // Є локальний, немає хмарного → завантажуємо локальний в хмару
-      debugPrint('📤 Завантажуємо локальний план в хмару');
-      await syncPlanToCloud(localPlan);
-      return localPlan;
-    } else if (cloudPlan != null && localPlan != null) {
-      // Є обидва → порівнюємо за датою (поки просто беремо хмарний)
-      debugPrint('🔀 Є обидва плани - використовуємо хмарний');
-      return cloudPlan;
+      case SyncConflict.localOnly:
+        debugPrint('📤 Завантажуємо локальний план в хмару');
+        await syncPlanToCloud(result.localPlan!);
+        return result.localPlan;
+
+      case SyncConflict.both:
+        // При конфлікті — хмарний має перевагу
+        debugPrint('🔀 Є обидва плани — замінюємо локальний на хмарний');
+        await _storage.savePlanFromCloud(result.cloudPlan!);
+        return result.cloudPlan;
+
+      case SyncConflict.none:
+        debugPrint('📭 Планів не знайдено');
+        return null;
     }
-
-    // Немає жодного плану
-    debugPrint('📭 Планів не знайдено');
-    return null;
   }
 
   // ═══════════════════════════════════════════════════════════════
