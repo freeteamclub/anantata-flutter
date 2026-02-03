@@ -8,10 +8,11 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
-/// Версія: 2.4.0 - Баг #8: збереження історії для гостя
-/// Дата: 18.01.2026
+/// Версія: 2.6.0 - Баг #7: генерація продовжується при виході з екрана
+/// Дата: 03.02.2026
 ///
 /// Виправлено:
+/// - Баг #7 - Генерація AI продовжується при виході з екрана (pending request)
 /// - P1 #8 - Збереження історії чату для гостя (локально)
 /// - P2 #40 - Іконка очищення чату → смітничок (delete_outline)
 /// - P3 #30 - "Швидкі дії" вирівняно з повідомленнями чату
@@ -21,6 +22,23 @@ import 'package:anantata/services/supabase_service.dart';
 /// - Баг #9 - Можливість виділити та скопіювати текст
 /// - Баг #12b - Коректна помилка при офлайн режимі
 /// - Допрацювання #14 - Форматування відповідей AI (жирний, курсив, списки)
+
+/// Глобальний стан для pending запиту (зберігається при виході з екрана)
+class _PendingChatRequest {
+  static bool isProcessing = false;
+  static String? userMessage;
+  static String? response;
+  static String? error;
+  static String? chatKey;
+
+  static void clear() {
+    isProcessing = false;
+    userMessage = null;
+    response = null;
+    error = null;
+    chatKey = null;
+  }
+}
 
 class ChatScreen extends StatefulWidget {
   final String? goalId;
@@ -55,6 +73,39 @@ class ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadChatHistory();
+    _checkPendingRequest();
+  }
+
+  /// Перевіряємо чи є незавершений запит (Баг #7)
+  void _checkPendingRequest() {
+    final chatKey = widget.goalId ?? 'general_chat';
+
+    // Якщо є відповідь для цього чату — додаємо її
+    if (_PendingChatRequest.chatKey == chatKey && _PendingChatRequest.response != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _addBotMessage(_PendingChatRequest.response!);
+          _PendingChatRequest.clear();
+        }
+      });
+    }
+    // Якщо є помилка — показуємо її
+    else if (_PendingChatRequest.chatKey == chatKey && _PendingChatRequest.error != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _addBotMessage(_PendingChatRequest.error!);
+          _PendingChatRequest.clear();
+        }
+      });
+    }
+    // Якщо запит ще обробляється — показуємо typing
+    else if (_PendingChatRequest.chatKey == chatKey && _PendingChatRequest.isProcessing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _isTyping = true);
+        }
+      });
+    }
   }
 
   @override
@@ -87,9 +138,45 @@ class ChatScreenState extends State<ChatScreen> {
     return buffer.toString();
   }
 
-  // v2.1: Публічний метод - очистити чат
+  // v2.5: Публічний метод - очистити чат БЕЗ діалогу (для зовнішнього виклику)
+  // Баг #4: Виправлено подвійний попап - тепер викликає _performClearChat() напряму
   void clearChatMessages() {
-    _clearChat();
+    _performClearChat();
+  }
+
+  /// Баг #4: Реальна очистка чату БЕЗ діалогу підтвердження
+  Future<void> _performClearChat() async {
+    final chatKey = widget.goalId ?? 'general_chat';
+
+    if (_supabase.isAuthenticated) {
+      try {
+        var query = _supabase.client
+            .from('chat_messages')
+            .delete()
+            .eq('user_id', _supabase.userId!);
+        if (widget.goalId != null) {
+          query = query.eq('goal_id', widget.goalId!);
+        } else {
+          query = query.isFilter('goal_id', null);
+        }
+        await query;
+        debugPrint('✅ Чат очищено в Supabase');
+      } catch (e) {
+        debugPrint('❌ Помилка очищення в Supabase: $e');
+      }
+    } else {
+      try {
+        await _storage.clearLocalChatHistory(chatKey);
+        debugPrint('✅ Чат очищено локально (гість)');
+      } catch (e) {
+        debugPrint('❌ Помилка локального очищення: $e');
+      }
+    }
+
+    setState(() {
+      _messages.clear();
+    });
+    _addBotMessage(_getGreetingMessage(), saveToCloud: false);
   }
 
   // Баг #5: Безпечний вихід з екрану
@@ -359,6 +446,14 @@ class ChatScreenState extends State<ChatScreen> {
       _isTyping = true;
     });
 
+    // Баг #7: Зберігаємо стан pending запиту
+    final chatKey = widget.goalId ?? 'general_chat';
+    _PendingChatRequest.isProcessing = true;
+    _PendingChatRequest.userMessage = text;
+    _PendingChatRequest.chatKey = chatKey;
+    _PendingChatRequest.response = null;
+    _PendingChatRequest.error = null;
+
     // Баг #3: Обгортаємо весь блок у try-catch для надійності
     try {
       String response;
@@ -388,30 +483,48 @@ class ChatScreenState extends State<ChatScreen> {
         // Баг #3: Логуємо для дебагу
         debugPrint('❌ API помилка: $apiError');
 
-        setState(() {
-          _isTyping = false;
-        });
+        // Баг #7: Зберігаємо помилку для відображення при поверненні
+        _PendingChatRequest.isProcessing = false;
+        _PendingChatRequest.error = _getErrorMessage(apiError);
 
-        // Баг #3: Показуємо user-friendly повідомлення
-        _addBotMessage(_getErrorMessage(apiError));
+        if (mounted) {
+          setState(() {
+            _isTyping = false;
+          });
+          _addBotMessage(_PendingChatRequest.error!);
+          _PendingChatRequest.clear();
+        }
         return;
       }
 
-      setState(() {
-        _isTyping = false;
-      });
+      // Баг #7: Зберігаємо відповідь
+      _PendingChatRequest.isProcessing = false;
+      _PendingChatRequest.response = response;
 
-      _addBotMessage(response);
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+        });
+        _addBotMessage(response);
+        _PendingChatRequest.clear();
+      }
+      // Якщо екран закрито — відповідь залишається в _PendingChatRequest
+      // і буде показана при поверненні в чат
 
     } catch (e) {
       // Баг #3: Загальний catch для будь-яких інших помилок
       debugPrint('❌ Загальна помилка в _sendMessage: $e');
 
-      setState(() {
-        _isTyping = false;
-      });
+      _PendingChatRequest.isProcessing = false;
+      _PendingChatRequest.error = _getErrorMessage(e);
 
-      _addBotMessage(_getErrorMessage(e));
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+        });
+        _addBotMessage(_PendingChatRequest.error!);
+        _PendingChatRequest.clear();
+      }
     }
   }
 
@@ -936,46 +1049,9 @@ class ChatScreenState extends State<ChatScreen> {
             child: const Text('Скасувати'),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              
-              // Визначаємо ключ для очищення
-              final chatKey = widget.goalId ?? 'general_chat';
-              
-              if (_supabase.isAuthenticated) {
-                // Баг #9: Видаляємо з Supabase
-                try {
-                  var query = _supabase.client
-                      .from('chat_messages')
-                      .delete()
-                      .eq('user_id', _supabase.userId!);
-                  
-                  if (widget.goalId != null) {
-                    query = query.eq('goal_id', widget.goalId!);
-                  } else {
-                    query = query.isFilter('goal_id', null);
-                  }
-                  
-                  await query;
-                  debugPrint('✅ Чат очищено в Supabase');
-                } catch (e) {
-                  debugPrint('❌ Помилка очищення в Supabase: $e');
-                }
-              } else {
-                // 🆕 Баг #8: Гість - очищаємо локально
-                try {
-                  await _storage.clearLocalChatHistory(chatKey);
-                  debugPrint('✅ Чат очищено локально (гість)');
-                } catch (e) {
-                  debugPrint('❌ Помилка локального очищення: $e');
-                }
-              }
-              
-              // Очищаємо та додаємо привітання
-              setState(() {
-                _messages.clear();
-              });
-              _addBotMessage(_getGreetingMessage(), saveToCloud: false);
+              _performClearChat();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,

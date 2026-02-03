@@ -5,8 +5,8 @@ import 'package:anantata/services/telegram_service.dart';
 import 'package:anantata/main.dart';
 
 /// Екран налаштувань нагадувань
-/// Версія: 1.0.0
-/// Дата: 07.01.2026
+/// Версія: 2.0.0 — Push/Telegram взаємовиключні (radio buttons)
+/// Дата: 03.02.2026
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -20,8 +20,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   final TelegramService _telegram = TelegramService();
 
   // Стан налаштувань
-  bool _pushEnabled = false;
-  bool _telegramNotifyEnabled = true;
+  // Канал доставки: 'push', 'telegram', 'disabled'
+  String _notificationChannel = 'disabled';
   String _reminderTime = '09:00';
   String _frequency = 'daily';
   bool _motivational = true;
@@ -48,9 +48,18 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       // Завантажуємо налаштування
       final settings = await _supabase.getNotificationSettings();
       if (settings != null && mounted) {
+        // Визначаємо канал на основі збережених значень
+        final pushEnabled = settings['push_enabled'] ?? false;
+        final telegramEnabled = settings['telegram_enabled'] ?? false;
+        String channel = 'disabled';
+        if (pushEnabled) {
+          channel = 'push';
+        } else if (telegramEnabled) {
+          channel = 'telegram';
+        }
+
         setState(() {
-          _pushEnabled = settings['push_enabled'] ?? false;
-          _telegramNotifyEnabled = settings['telegram_enabled'] ?? true;
+          _notificationChannel = channel;
           _reminderTime = settings['reminder_time'] ?? '09:00';
           _frequency = settings['frequency'] ?? 'daily';
           _motivational = settings['motivational'] ?? true;
@@ -76,11 +85,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
   Future<void> _saveSettings() async {
     setState(() => _isSaving = true);
-    
+
     try {
       await _supabase.saveNotificationSettings(
-        pushEnabled: _pushEnabled,
-        telegramEnabled: _telegramNotifyEnabled,
+        pushEnabled: _notificationChannel == 'push',
+        telegramEnabled: _notificationChannel == 'telegram',
         reminderTime: _reminderTime,
         frequency: _frequency,
         motivational: _motivational,
@@ -97,17 +106,20 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     }
   }
 
-  Future<void> _togglePushNotifications(bool enabled) async {
-    if (enabled) {
+  Future<void> _selectChannel(String channel) async {
+    if (channel == _notificationChannel) return;
+
+    // Якщо вибрано Push — запитуємо дозвіл
+    if (channel == 'push') {
       setState(() => _isSaving = true);
-      
+
       try {
         final success = await FCMService().requestPermissionAndGetToken();
 
         if (success) {
-          setState(() => _pushEnabled = true);
+          setState(() => _notificationChannel = 'push');
           await _saveSettings();
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -132,14 +144,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         setState(() => _isSaving = false);
       }
     } else {
-      setState(() => _pushEnabled = false);
+      // Telegram або Вимкнено — просто зберігаємо
+      setState(() => _notificationChannel = channel);
       await _saveSettings();
     }
-  }
-
-  Future<void> _toggleTelegramNotifications(bool enabled) async {
-    setState(() => _telegramNotifyEnabled = enabled);
-    await _saveSettings();
   }
 
   void _showTimePickerDialog() async {
@@ -229,6 +237,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   Widget _buildChannelsSection() {
+    final isTelegramLinked = _telegramStatus?.isLinked == true;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -242,95 +252,126 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Отримувати сповіщення через:',
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+
           // Push-сповіщення
-          _buildToggleItem(
+          _buildRadioItem(
             icon: Icons.phone_android,
             iconColor: AppTheme.primaryColor,
             title: 'Push-сповіщення',
             subtitle: 'На телефон та браузер',
-            value: _pushEnabled,
-            onChanged: _togglePushNotifications,
+            value: 'push',
+            groupValue: _notificationChannel,
+            onChanged: (val) => _selectChannel(val!),
           ),
-          
+
           const Divider(height: 1, indent: 56),
-          
+
           // Telegram
-          _buildToggleItem(
+          _buildRadioItem(
             icon: Icons.telegram,
             iconColor: const Color(0xFF0088cc),
             title: 'Telegram',
-            subtitle: _telegramStatus?.isLinked == true 
-                ? 'Підключено' 
-                : 'Не підключено',
-            value: _telegramNotifyEnabled && _telegramStatus?.isLinked == true,
-            onChanged: _telegramStatus?.isLinked == true
-                ? _toggleTelegramNotifications
-                : null,
+            subtitle: isTelegramLinked ? 'Підключено' : 'Не підключено',
+            value: 'telegram',
+            groupValue: _notificationChannel,
+            onChanged: isTelegramLinked ? (val) => _selectChannel(val!) : null,
+            enabled: isTelegramLinked,
+          ),
+
+          const Divider(height: 1, indent: 56),
+
+          // Вимкнено
+          _buildRadioItem(
+            icon: Icons.notifications_off_outlined,
+            iconColor: Colors.grey,
+            title: 'Вимкнено',
+            subtitle: 'Не отримувати сповіщення',
+            value: 'disabled',
+            groupValue: _notificationChannel,
+            onChanged: (val) => _selectChannel(val!),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildToggleItem({
+  Widget _buildRadioItem({
     required IconData icon,
     required Color iconColor,
     required String title,
     required String subtitle,
-    required bool value,
-    required void Function(bool)? onChanged,
+    required String value,
+    required String groupValue,
+    required void Function(String?)? onChanged,
+    bool enabled = true,
   }) {
-    final isEnabled = onChanged != null;
+    final isSelected = value == groupValue;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: (isEnabled ? iconColor : Colors.grey).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      onTap: enabled ? () => onChanged?.call(value) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: (enabled ? iconColor : Colors.grey).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: enabled ? iconColor : Colors.grey,
+                size: 22,
+              ),
             ),
-            child: Icon(
-              icon,
-              color: isEnabled ? iconColor : Colors.grey,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isEnabled ? AppTheme.textPrimary : Colors.grey,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: enabled ? AppTheme.textPrimary : Colors.grey,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    fontSize: 13,
-                    color: Colors.grey[600],
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppTheme.primaryColor,
-          ),
-        ],
+            Radio<String>(
+              value: value,
+              groupValue: groupValue,
+              onChanged: enabled ? onChanged : null,
+              activeColor: AppTheme.primaryColor,
+            ),
+          ],
+        ),
       ),
     );
   }

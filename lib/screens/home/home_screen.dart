@@ -889,6 +889,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _navigateToTab(int index) {
+    // Закриваємо всі вкладені екрани (pop until root)
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
     _previousIndex = _currentIndex;
     setState(() => _currentIndex = index);
 

@@ -235,9 +235,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Очистити дані?'),
+        title: const Text('Очистити всі дані?'),
         content: const Text(
-          'Це видалить вашу ціль, план та весь прогрес. Цю дію неможливо скасувати.',
+          'Це видалить:\n'
+          '• Всі цілі та плани\n'
+          '• Прогрес виконання\n'
+          '• Історію чату з ШІ\n'
+          '• Прив\'язку Telegram\n'
+          '• Налаштування сповіщень\n\n'
+          'Цю дію неможливо скасувати.',
         ),
         actions: [
           TextButton(
@@ -247,21 +253,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Очистити'),
+            child: const Text('Очистити все'),
           ),
         ],
       ),
     );
 
     if (confirm == true) {
+      // Очищаємо локальні дані
       await _storage.clearAll();
+
+      // Очищаємо дані в хмарі (якщо авторизований)
+      if (_supabase.isAuthenticated) {
+        await _supabase.clearAllUserData();
+      }
+
       if (mounted) {
         setState(() {
           _hasGoal = false;
           _currentGoal = null;
+          _telegramStatus = _supabase.isAuthenticated
+              ? TelegramLinkStatus.notLinked()
+              : TelegramLinkStatus.notAuthenticated();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ціль, план та прогрес видалено')),
+          const SnackBar(
+            content: Text('Всі дані очищено'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     }
