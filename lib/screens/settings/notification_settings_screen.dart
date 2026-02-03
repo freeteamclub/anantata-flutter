@@ -3,6 +3,7 @@ import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/telegram_service.dart';
 import 'package:anantata/main.dart';
+import 'package:anantata/services/analytics_service.dart';
 
 /// Екран налаштувань нагадувань
 /// Версія: 2.0.0 — Push/Telegram взаємовиключні (radio buttons)
@@ -96,6 +97,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         stepReminders: _stepReminders,
         achievements: _achievements,
         weeklyStats: _weeklyStats,
+      );
+
+      // Analytics: notification settings changed
+      AnalyticsService().logNotificationSettingsChanged(
+        channel: _notificationChannel,
+        frequency: _frequency,
+        time: _reminderTime,
       );
     } catch (e) {
       debugPrint('Error saving settings: $e');

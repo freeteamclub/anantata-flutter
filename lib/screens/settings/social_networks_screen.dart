@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/telegram_service.dart';
+import 'package:anantata/services/analytics_service.dart';
 
 /// Екран прив'язки соцмереж
 /// Версія: 2.2.0 - Баг #11: Спрощено Telegram flow (без коду)
@@ -333,6 +334,9 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
           ),
           ElevatedButton.icon(
             onPressed: () async {
+              // Analytics: telegram link started
+              AnalyticsService().logTelegramLinkStarted();
+
               final url = Uri.parse(_telegram.getBotLinkWithCode(code));
               final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
               if (context.mounted) {
@@ -393,6 +397,9 @@ class _SocialNetworksScreenState extends State<SocialNetworksScreen> {
         setState(() => _isTelegramLoading = false);
 
         if (success) {
+          // Analytics: telegram unlinked
+          AnalyticsService().logTelegramUnlinked();
+
           setState(() {
             _telegramStatus = TelegramLinkStatus.notLinked();
             _pendingLinkCode = null;

@@ -7,6 +7,7 @@ import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/supabase_service.dart';
+import 'package:anantata/services/analytics_service.dart';
 
 /// Екран чату для допомоги по конкретному кроку
 /// Версія: 1.5.0 - Виправлено URL
@@ -50,14 +51,32 @@ class _StepChatScreenState extends State<StepChatScreen> {
   bool _isTyping = false;
   bool _isLoading = true;
 
+  // Analytics: session tracking
+  DateTime? _sessionStartTime;
+  int _sessionMessagesCount = 0;
+
   @override
   void initState() {
     super.initState();
     _loadChatHistory();
+
+    // Analytics: step chat session started
+    _sessionStartTime = DateTime.now();
+    AnalyticsService().logChatSessionStarted(chatType: 'step', stepId: widget.step.id);
   }
 
   @override
   void dispose() {
+    // Analytics: step chat session ended
+    if (_sessionStartTime != null && _sessionMessagesCount > 0) {
+      final durationSeconds = DateTime.now().difference(_sessionStartTime!).inSeconds;
+      AnalyticsService().logChatSessionEnded(
+        chatType: 'step',
+        messagesCount: _sessionMessagesCount,
+        durationSeconds: durationSeconds,
+      );
+    }
+
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -294,6 +313,11 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
 
     _addUserMessage(text);
 
+    // Analytics: chat message sent
+    _sessionMessagesCount++;
+    AnalyticsService().logChatMessageSent(messageLength: text.length, chatType: 'step');
+    final requestStartTime = DateTime.now();
+
     setState(() {
       _isTyping = true;
     });
@@ -302,6 +326,14 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
       final response = await _gemini.sendMessageWithContext(
         message: text,
         context: _buildSystemContext(),
+      );
+
+      // Analytics: chat response received
+      final responseTimeMs = DateTime.now().difference(requestStartTime).inMilliseconds;
+      AnalyticsService().logChatResponseReceived(
+        responseLength: response.length,
+        responseTimeMs: responseTimeMs,
+        chatType: 'step',
       );
 
       setState(() {

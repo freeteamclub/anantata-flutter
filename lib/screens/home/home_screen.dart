@@ -10,6 +10,7 @@ import 'package:anantata/screens/assessment/generation_screen.dart';
 import 'package:anantata/screens/profile/profile_screen.dart';
 import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/chat/step_chat_screen.dart';
+import 'package:anantata/services/analytics_service.dart';
 
 /// Головний екран додатку v6.3
 /// Версія: 6.3
@@ -592,8 +593,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onTap: () {
               if (isDone) {
                 _resetStep(step.id);
+                AnalyticsService().logStepReset(
+                  stepId: step.id,
+                  stepNumber: displayNumber,
+                );
               } else {
                 _markStepDone(step.id);
+                AnalyticsService().logStepCompleted(
+                  stepId: step.id,
+                  stepNumber: displayNumber,
+                  phaseNumber: ((displayNumber - 1) ~/ 10) + 1,
+                );
               }
             },
             child: Container(

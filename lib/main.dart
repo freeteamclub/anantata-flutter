@@ -8,6 +8,7 @@ import 'package:anantata/firebase_options.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/sync_service.dart';
+import 'package:anantata/services/analytics_service.dart';
 import 'package:anantata/screens/splash/splash_screen.dart';
 import 'package:anantata/screens/home/home_screen.dart';
 import 'package:anantata/screens/auth/auth_screen.dart';
@@ -68,6 +69,14 @@ void main() async {
   } catch (e) {
     debugPrint('⚠️ Помилка ініціалізації Supabase: $e');
     // Продовжуємо в офлайн режимі
+  }
+
+  // Ініціалізація Analytics (Amplitude)
+  try {
+    await AnalyticsService().initialize();
+    debugPrint('✅ Analytics ініціалізовано');
+  } catch (e) {
+    debugPrint('⚠️ Помилка ініціалізації Analytics: $e');
   }
 
   runApp(const AnantataApp());
@@ -247,6 +256,9 @@ class _AnantataAppState extends State<AnantataApp> {
 
       // Тема
       theme: AppTheme.lightTheme,
+
+      // Analytics: автоматичний трекінг навігації
+      navigatorObservers: [AnalyticsService().observer],
 
       // Builder обгортає ВСІ екрани в WebWrapper (тільки для Web)
       builder: (context, child) {

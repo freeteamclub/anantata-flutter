@@ -6,6 +6,7 @@ import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
+import 'package:anantata/services/analytics_service.dart';
 
 /// Екран AI чату з кар'єрним коучем
 /// Версія: 2.6.0 - Баг #7: генерація продовжується при виході з екрана
@@ -69,11 +70,19 @@ class ChatScreenState extends State<ChatScreen> {
   bool _isTyping = false;
   bool _isQuickActionsExpanded = true;
 
+  // Analytics: session tracking
+  DateTime? _sessionStartTime;
+  int _sessionMessagesCount = 0;
+
   @override
   void initState() {
     super.initState();
     _loadChatHistory();
     _checkPendingRequest();
+
+    // Analytics: chat session started
+    _sessionStartTime = DateTime.now();
+    AnalyticsService().logChatSessionStarted(chatType: 'general');
   }
 
   /// Перевіряємо чи є незавершений запит (Баг #7)
@@ -110,6 +119,16 @@ class ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Analytics: chat session ended
+    if (_sessionStartTime != null && _sessionMessagesCount > 0) {
+      final durationSeconds = DateTime.now().difference(_sessionStartTime!).inSeconds;
+      AnalyticsService().logChatSessionEnded(
+        chatType: 'general',
+        messagesCount: _sessionMessagesCount,
+        durationSeconds: durationSeconds,
+      );
+    }
+
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -442,6 +461,11 @@ class ChatScreenState extends State<ChatScreen> {
 
     _addUserMessage(text);
 
+    // Analytics: chat message sent
+    _sessionMessagesCount++;
+    AnalyticsService().logChatMessageSent(messageLength: text.length, chatType: 'general');
+    final requestStartTime = DateTime.now();
+
     setState(() {
       _isTyping = true;
     });
@@ -500,6 +524,14 @@ class ChatScreenState extends State<ChatScreen> {
       // Баг #7: Зберігаємо відповідь
       _PendingChatRequest.isProcessing = false;
       _PendingChatRequest.response = response;
+
+      // Analytics: chat response received
+      final responseTimeMs = DateTime.now().difference(requestStartTime).inMilliseconds;
+      AnalyticsService().logChatResponseReceived(
+        responseLength: response.length,
+        responseTimeMs: responseTimeMs,
+        chatType: 'general',
+      );
 
       if (mounted) {
         setState(() {

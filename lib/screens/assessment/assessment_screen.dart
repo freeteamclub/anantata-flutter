@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/data/assessment_questions.dart';
+import 'package:anantata/services/analytics_service.dart';
 
 /// Екран кар'єрного оцінювання v2.7
 /// 15 питань з прогрес-баром та валідацією
@@ -46,6 +47,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _customInputFocusNode = FocusNode();
   final GlobalKey _customInputKey = GlobalKey();
+
+  // Analytics: час початку оцінювання
+  DateTime? _assessmentStartTime;
 
   AssessmentQuestion get _currentQuestion =>
       assessmentQuestions[_currentQuestionIndex];
@@ -103,6 +107,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   // Допрацювання #7: Почати оцінювання (закрити intro)
   void _startAssessment() {
+    _assessmentStartTime = DateTime.now();
+    AnalyticsService().logAssessmentStarted();
+
     setState(() {
       _showIntro = false;
     });
@@ -163,6 +170,12 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     }
 
     _customInputFocusNode.unfocus();
+
+    // Analytics: відповідь на питання
+    AnalyticsService().logAssessmentQuestionAnswered(
+      questionNumber: _currentQuestionIndex + 1,
+      totalQuestions: _totalQuestions,
+    );
 
     if (_currentQuestionIndex < _totalQuestions - 1) {
       setState(() {
@@ -237,6 +250,15 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   }
 
   void _submitAssessment() {
+    // Analytics: assessment completed
+    final durationSeconds = _assessmentStartTime != null
+        ? DateTime.now().difference(_assessmentStartTime!).inSeconds
+        : 0;
+    AnalyticsService().logAssessmentCompleted(
+      questionsAnswered: _answers.length,
+      durationSeconds: durationSeconds,
+    );
+
     widget.onSubmit?.call(_answers);
 
     // Баг #9: Якщо onComplete не передано, просто закриваємо екран
@@ -548,7 +570,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               Text(
                 'Кар\'єрна оцінка',
                 style: TextStyle(
-                  fontFamily: 'Bitter',
+                  fontFamily: 'Roboto',
                   fontSize: titleFontSize,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
@@ -561,7 +583,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               Text(
                 'Дізнайтеся свій потенціал та\nотримайте персональний план',
                 style: TextStyle(
-                  fontFamily: 'NunitoSans',
+                  fontFamily: 'Roboto',
                   fontSize: subtitleFontSize,
                   color: Colors.grey[600],
                   height: 1.4,

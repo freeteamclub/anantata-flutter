@@ -5,6 +5,7 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/sync_service.dart';
 import 'package:anantata/services/telegram_service.dart';
+import 'package:anantata/services/analytics_service.dart';
 import 'package:anantata/screens/assessment/assessment_screen.dart';
 import 'package:anantata/screens/assessment/generation_screen.dart';
 import 'package:anantata/screens/goal/goals_list_screen.dart';
@@ -110,6 +111,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await _supabase.signInWithGoogle();
 
+      // Analytics: login
+      AnalyticsService().logLogin('google');
+      AnalyticsService().setUserId(_supabase.currentUser?.id);
+
       if (mounted) {
         // Перевірка конфлікту планів після входу
         await _handleSyncConflict();
@@ -194,8 +199,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (choice == 'keepLocal') {
       await sync.applyLocalPlan(result.localPlan!);
+      AnalyticsService().logSyncConflict(resolution: 'local');
     } else {
       await sync.applyCloudPlan(result.cloudPlan!);
+      AnalyticsService().logSyncConflict(resolution: 'cloud');
     }
   }
 
@@ -219,6 +226,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirm == true) {
+      // Analytics: logout
+      AnalyticsService().logLogout();
+      AnalyticsService().setUserId(null);
+
       await _supabase.signOut();
       if (mounted) {
         setState(() {

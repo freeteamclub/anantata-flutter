@@ -40,8 +40,13 @@ dependencies:
 
   # File System
   path_provider: ^2.1.1
+  # Firebase
   firebase_core: ^4.3.0
   firebase_messaging: ^16.1.0
+  firebase_analytics: ^12.1.0
+
+  # Amplitude
+  amplitude_flutter: ^4.0.0
 
 dev_dependencies:
   flutter_test:
