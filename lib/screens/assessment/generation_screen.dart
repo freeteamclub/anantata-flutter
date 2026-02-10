@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/storage_service.dart';
+import 'package:anantata/services/profile_summary_service.dart';  // T7
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/screens/goal/goals_list_screen.dart';
 
@@ -34,6 +35,7 @@ class _GenerationScreenState extends State<GenerationScreen>
   // Сервіси
   final GeminiService _gemini = GeminiService();
   final StorageService _storage = StorageService();
+  final ProfileSummaryService _profileSummary = ProfileSummaryService();  // T7
 
   // Стан генерації
   GenerationState _state = GenerationState.analyzing;
@@ -90,12 +92,16 @@ class _GenerationScreenState extends State<GenerationScreen>
   }
 
   // Баг #12a: Запускаємо симуляцію прогресу під час очікування Gemini
+  // Покращено: динамічний крок що сповільнюється — ніколи не "зависає"
   void _startProgressSimulation() {
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (_progress < 0.74 && mounted) {
         setState(() {
-          // Плавно збільшуємо прогрес
-          _progress += 0.015; // ~1.5% кожні 400мс
+          // Динамічний крок: швидко на початку, повільніше ближче до 74%
+          // Чим ближче до 74%, тим менший крок — прогрес ніколи не зупиняється
+          final remaining = 0.74 - _progress;
+          final step = remaining * 0.08; // 8% від залишку
+          _progress += step.clamp(0.002, 0.02); // мін 0.2%, макс 2%
 
           // Змінюємо повідомлення на різних етапах
           if (_progress >= 0.45 && _progress < 0.55) {
@@ -177,6 +183,14 @@ class _GenerationScreenState extends State<GenerationScreen>
       // Зберігаємо план
       final savedPlan = await _storage.saveGeneratedPlan(generatedPlan);
       await _storage.setAssessmentComplete(true);
+
+      // T7: Створюємо перший Profile Summary після assessment
+      // Передаємо дані плану напряму щоб уникнути race condition з Supabase
+      _profileSummary.checkAndUpdateSummary(
+        trigger: TriggerType.assessmentCompleted,
+        goalTitle: generatedPlan.goal.title,
+        targetSalary: generatedPlan.goal.targetSalary,
+      );
 
       // 🆕 Отримуємо інформацію про кількість цілей
       final goalsList = await _storage.getGoalsList();

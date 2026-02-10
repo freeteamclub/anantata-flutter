@@ -7,6 +7,7 @@ import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/analytics_service.dart';
+import 'package:anantata/services/profile_summary_service.dart';  // T7
 
 /// Екран AI чату з кар'єрним коучем
 /// Версія: 2.6.0 - Баг #7: генерація продовжується при виході з екрана
@@ -69,6 +70,10 @@ class ChatScreenState extends State<ChatScreen> {
   bool _isLoading = false;
   bool _isTyping = false;
   bool _isQuickActionsExpanded = true;
+
+  // T7: Profile Summary для персоналізації
+  String? _profileSummary;
+  final ProfileSummaryService _profileSummaryService = ProfileSummaryService();
 
   // Analytics: session tracking
   DateTime? _sessionStartTime;
@@ -215,8 +220,18 @@ class ChatScreenState extends State<ChatScreen> {
     }
     plan ??= await _storage.getCareerPlan();
 
+    // T7: Завантажуємо profile_summary для персоналізації
+    String? summary;
+    try {
+      summary = await _profileSummaryService.getSummary();
+      debugPrint('📝 Profile summary завантажено: ${summary != null ? "${summary.length} символів" : "немає"}');
+    } catch (e) {
+      debugPrint('⚠️ Помилка завантаження profile_summary: $e');
+    }
+
     setState(() {
       _plan = plan;
+      _profileSummary = summary;
     });
 
     // Визначаємо ключ для завантаження
@@ -485,6 +500,7 @@ class ChatScreenState extends State<ChatScreen> {
       // Баг #3: Окремий try-catch для API запиту
       try {
         if (_plan != null) {
+          // T7: Передаємо profile_summary для персоналізації
           final context = _gemini.buildAIContext(
             plan: _plan!,
             chatHistory: _messages
@@ -493,6 +509,7 @@ class ChatScreenState extends State<ChatScreen> {
               'content': m.text,
             })
                 .toList(),
+            profileSummary: _profileSummary,
           );
 
           response = await _gemini.sendMessageWithContext(

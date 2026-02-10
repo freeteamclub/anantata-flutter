@@ -568,44 +568,88 @@ $formattedAnswers
   }
 
   /// Побудова контексту для AI чату
+  /// T7: Додано підтримку profile_summary для персоналізації
   String buildAIContext({
     required CareerPlanModel plan,
     required List<Map<String, String>> chatHistory,
+    String? profileSummary,
+    int? streakDays,
   }) {
     final directions = plan.directions
         .map((d) => '${d.directionNumber}. ${d.title} (${plan.getDirectionProgress(d.id)}%)')
         .join('\n');
 
-    final steps = plan.steps
-        .map((s) => '${s.stepNumber}. [${s.status.name}] ${s.title}')
-        .join('\n');
+    // Останні 5 виконаних кроків для контексту
+    final completedSteps = plan.steps
+        .where((s) => s.status == ItemStatus.done)
+        .toList();
+    final last5Completed = completedSteps.length > 5
+        ? completedSteps.sublist(completedSteps.length - 5)
+        : completedSteps;
+    final completedStepsText = last5Completed.isEmpty
+        ? 'Ще немає виконаних кроків'
+        : last5Completed.map((s) => '✅ ${s.title}').join('\n');
+
+    // Наступний рекомендований крок
+    final nextStep = plan.nextStep;
+    final nextStepText = nextStep != null
+        ? '${nextStep.stepNumber}. ${nextStep.title}'
+        : 'Всі кроки виконано!';
 
     final history = chatHistory
         .take(10)
         .map((m) => '${m['role']}: ${m['content']}')
         .join('\n');
 
-    return '''
-КОНТЕКСТ КОРИСТУВАЧА:
+    // T7: Profile summary блок
+    final profileBlock = (profileSummary != null && profileSummary.isNotEmpty)
+        ? '''
+ПРОФІЛЬ КОРИСТУВАЧА:
+$profileSummary
+'''
+        : '';
 
-ЦІЛЬ: ${plan.goal.title}
+    // Streak info
+    final streakText = (streakDays != null && streakDays > 0)
+        ? 'СЕРІЯ: $streakDays днів поспіль 🔥'
+        : '';
+
+    return '''
+Ти — Коуч, персональний AI-помічник в додатку 100Steps Career.
+$profileBlock
+ПОТОЧНА ЦІЛЬ: ${plan.goal.title}
 ЦІЛЬОВА ЗАРПЛАТА: ${plan.goal.targetSalary}
-ПРОГРЕС: ${plan.overallProgress.toStringAsFixed(0)}%
-ПОТОЧНИЙ БЛОК: ${plan.currentBlock}
+
+ПРОГРЕС:
+- Виконано: ${completedSteps.length}/${plan.steps.length} кроків (${plan.overallProgress.toStringAsFixed(0)}%)
+${streakText.isNotEmpty ? '- $streakText' : ''}
+- Поточний блок: ${plan.currentBlock}
 
 НАПРЯМКИ:
 $directions
 
-ВСІ 100 КРОКІВ:
-$steps
+ОСТАННІ ВИКОНАНІ КРОКИ:
+$completedStepsText
+
+НАСТУПНИЙ РЕКОМЕНДОВАНИЙ КРОК:
+$nextStepText
 
 ІСТОРІЯ ЧАТУ:
 $history
 
-ІНСТРУКЦІЇ:
-- Ти кар'єрний коуч, який допомагає користувачу досягти мети
-- Відповідай конкретно, з урахуванням плану користувача
-- Мотивуй та підтримуй
+ПРИ ПЕРШОМУ ПОВІДОМЛЕННІ В СЕСІЇ:
+Привітайся, покажи короткий аналіз прогресу, дай конкретну рекомендацію на сьогодні та запропонуй варіанти дій.
+
+РОЛЬ:
+- Проактивний стратег (сам пропонує, не чекає)
+- Кар'єрний коуч (мотивує, дає feedback)
+- Аналітик (бачить прогрес, знаходить патерни)
+
+ПРАВИЛА:
+- Завжди конкретні поради під цього користувача
+- Зв'язуй кроки між собою
+- Пропонуй варіанти дій
+- Тон: дружній професіонал
 - Мова: українська
 ''';
   }

@@ -8,6 +8,7 @@ import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/analytics_service.dart';
+import 'package:anantata/services/profile_summary_service.dart';  // T7
 
 /// Екран чату для допомоги по конкретному кроку
 /// Версія: 1.5.0 - Виправлено URL
@@ -46,10 +47,12 @@ class _StepChatScreenState extends State<StepChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final GeminiService _gemini = GeminiService();
   final SupabaseService _supabase = SupabaseService();
+  final ProfileSummaryService _profileSummaryService = ProfileSummaryService();  // T7
 
   final List<_ChatMessage> _messages = [];
   bool _isTyping = false;
   bool _isLoading = true;
+  String? _profileSummary;  // T7: Profile Summary для персоналізації
 
   // Analytics: session tracking
   DateTime? _sessionStartTime;
@@ -88,6 +91,14 @@ class _StepChatScreenState extends State<StepChatScreen> {
     setState(() => _isLoading = true);
 
     debugPrint('📥 Завантаження чату для кроку: ${widget.step.id}');
+
+    // T7: Завантажуємо profile_summary для персоналізації
+    try {
+      _profileSummary = await _profileSummaryService.getSummary();
+      debugPrint('📝 Profile summary: ${_profileSummary != null ? "${_profileSummary!.length} символів" : "немає"}');
+    } catch (e) {
+      debugPrint('⚠️ Помилка завантаження profile_summary: $e');
+    }
 
     try {
       if (_supabase.isAuthenticated) {
@@ -226,13 +237,21 @@ class _StepChatScreenState extends State<StepChatScreen> {
   }
 
   String _buildSystemContext() {
+    // T7: Додаємо profile_summary для персоналізації
+    final profileBlock = (_profileSummary != null && _profileSummary!.isNotEmpty)
+        ? '''
+ПРОФІЛЬ КОРИСТУВАЧА:
+$_profileSummary
+'''
+        : '';
+
     return '''
 Ти — дружній AI-коуч в додатку 100StepsCareer. Ти як досвідчений друг-ментор, який щиро хоче допомогти.
-
-КОНТЕКСТ КОРИСТУВАЧА:
+$profileBlock
+КОНТЕКСТ РОБОТИ:
 - Ціль: ${widget.goalTitle}
 ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSalary}' : ''}
-- Поточний крок: ${widget.step.title}
+- Поточний крок #${widget.step.stepNumber}: ${widget.step.title}
 - Опис кроку: ${widget.step.description}
 
 ТВІЙ СТИЛЬ СПІЛКУВАННЯ:
@@ -247,6 +266,7 @@ ${widget.targetSalary != null ? '- Бажаний дохід: ${widget.targetSal
 - Дочекайся відповіді, перш ніж ставити наступне
 - Спочатку зрозумій ситуацію людини, потім давай поради
 - Поради мають бути конкретними і практичними
+- Використовуй профіль користувача для персоналізації порад
 
 КРИТИЧНО ВАЖЛИВО - ПРИВІТАННЯ:
 - НЕ вітайся словом "Привіт" або "Вітаю" після першого повідомлення!

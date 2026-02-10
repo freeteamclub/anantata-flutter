@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/supabase_service.dart';
+import 'package:anantata/services/profile_summary_service.dart';  // T7
 import 'package:uuid/uuid.dart';
 
 /// Сервіс для локального збереження даних
@@ -539,6 +540,26 @@ class StorageService {
   /// Позначити крок як виконаний
   Future<void> markStepDone(String stepId) async {
     await _updateStepStatus(stepId, ItemStatus.done);
+
+    // T7: Перевіряємо milestone для оновлення profile_summary
+    _checkProfileSummaryMilestone();
+  }
+
+  /// T7: Перевірка milestone кожні 20 кроків
+  Future<void> _checkProfileSummaryMilestone() async {
+    try {
+      final profileSummaryService = ProfileSummaryService();
+      final shouldTrigger = await profileSummaryService.shouldTriggerMilestone();
+
+      if (shouldTrigger) {
+        debugPrint('🎯 Milestone досягнуто! Оновлюємо profile_summary...');
+        await profileSummaryService.checkAndUpdateSummary(
+          trigger: TriggerType.stepsMilestone,
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Помилка перевірки milestone: $e');
+    }
   }
 
   /// Пропустити крок

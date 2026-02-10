@@ -211,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Вийти з акаунту?'),
-        content: const Text('Ваші локальні дані залишаться на пристрої.'),
+        content: const Text('Локальні дані будуть очищені.\nПри повторному вході ваш план завантажиться з хмари.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -231,9 +231,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       AnalyticsService().setUserId(null);
 
       await _supabase.signOut();
+
+      // Очищаємо локальні дані (план, кроки, чат) щоб вони не показувались у гостьовому режимі
+      await _storage.clearAll();
+      debugPrint('🗑️ Локальні дані очищено після виходу');
+
       if (mounted) {
         setState(() {
           _telegramStatus = TelegramLinkStatus.notAuthenticated();
+          _hasGoal = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ви вийшли з акаунту')),

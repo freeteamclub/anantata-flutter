@@ -198,6 +198,111 @@ class SupabaseService {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // PROFILE SUMMARY (T7)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Отримати profile_summary
+  Future<String?> getProfileSummary() async {
+    if (!isAuthenticated) return null;
+
+    try {
+      final response = await client
+          .from('profiles')
+          .select('profile_summary')
+          .eq('id', userId!)
+          .maybeSingle();
+
+      return response?['profile_summary'] as String?;
+    } catch (e) {
+      debugPrint('❌ Помилка отримання profile_summary: $e');
+      return null;
+    }
+  }
+
+  /// Зберегти profile_summary
+  Future<bool> saveProfileSummary(String summary) async {
+    if (!isAuthenticated) return false;
+
+    try {
+      await client.from('profiles').update({
+        'profile_summary': summary,
+        'profile_summary_updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId!);
+
+      debugPrint('✅ Profile summary збережено');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Помилка збереження profile_summary: $e');
+      return false;
+    }
+  }
+
+  /// Отримати кількість виконаних кроків
+  Future<int> getCompletedStepsCount() async {
+    if (!isAuthenticated) return 0;
+
+    try {
+      final goal = await getActiveGoal();
+      if (goal == null) return 0;
+
+      final response = await client
+          .from('steps')
+          .select('id')
+          .eq('goal_id', goal['id'])
+          .eq('status', 'done');
+
+      return (response as List).length;
+    } catch (e) {
+      debugPrint('❌ Помилка підрахунку кроків: $e');
+      return 0;
+    }
+  }
+
+  /// Отримати останні виконані кроки (для контексту)
+  Future<List<Map<String, dynamic>>> getRecentCompletedSteps({int limit = 5}) async {
+    if (!isAuthenticated) return [];
+
+    try {
+      final goal = await getActiveGoal();
+      if (goal == null) return [];
+
+      final response = await client
+          .from('steps')
+          .select('title, description, completed_at')
+          .eq('goal_id', goal['id'])
+          .eq('status', 'done')
+          .order('completed_at', ascending: false)
+          .limit(limit);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('❌ Помилка отримання останніх кроків: $e');
+      return [];
+    }
+  }
+
+  /// Отримати відповіді assessment
+  Future<Map<String, dynamic>?> getAssessmentAnswers() async {
+    if (!isAuthenticated) return null;
+
+    try {
+      final response = await client
+          .from('assessment_answers')
+          .select('answers')
+          .eq('user_id', userId!)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      return response?['answers'] as Map<String, dynamic>?;
+    } catch (e) {
+      debugPrint('❌ Помилка отримання assessment answers: $e');
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // GOALS (ЦІЛІ)
   // ═══════════════════════════════════════════════════════════════
 

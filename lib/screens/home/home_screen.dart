@@ -866,17 +866,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Почніть свою подорож',
-              style: TextStyle(fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            Icon(
+              Icons.rocket_launch_rounded,
+              size: 64,
+              color: AppTheme.primaryColor.withValues(alpha: 0.6),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Пройдіть оцінювання, щоб отримати\nперсональний план з 100 кроками',
-              style: TextStyle(fontFamily: 'Roboto', fontSize: 15, color: Colors.grey[600], height: 1.5),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
