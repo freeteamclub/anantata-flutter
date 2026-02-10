@@ -571,7 +571,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 // 🆕 v6.2: Обчислюємо глобальний номер кроку на основі позиції
                 // directionIndex (0-9) × 10 + stepIndex (0-9) + 1 = 1-100
                 final globalStepNumber = (directionIndex * 10) + stepIndex + 1;
-                return _buildStepItem(step, globalStepNumber);
+                return _buildStepItem(step, globalStepNumber, directionTitle: direction.title);
               },
             ),
           ],
@@ -581,7 +581,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // 🆕 v6.2: Додано параметр displayNumber для коректної нумерації
-  Widget _buildStepItem(StepModel step, int displayNumber) {
+  // T5: Додано directionTitle для StepChatScreen
+  Widget _buildStepItem(StepModel step, int displayNumber, {String? directionTitle}) {
     final isDone = step.status == ItemStatus.done;
 
     return Padding(
@@ -650,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           GestureDetector(
-            onTap: () => _openStepChat(step),
+            onTap: () => _openStepChat(step, directionTitle: directionTitle),
             child: Container(
               width: 36,
               height: 36,
@@ -667,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _openStepChat(StepModel step) {
+  void _openStepChat(StepModel step, {String? directionTitle}) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -676,6 +677,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           goalTitle: _plan?.goal.title ?? 'Моя ціль',
           goalId: _plan?.goal.id ?? '',
           targetSalary: _plan?.goal.targetSalary,
+          directionTitle: directionTitle,
         ),
       ),
     );

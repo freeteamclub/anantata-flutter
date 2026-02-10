@@ -671,7 +671,7 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
               itemBuilder: (context, stepIndex) {
                 final step = steps[stepIndex];
-                return _buildStepItem(step);
+                return _buildStepItem(step, stepIndex);
               },
             ),
           ],
@@ -681,7 +681,8 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   // P2 #37: Спрощений StepItem (без кнопки "Пропустити")
-  Widget _buildStepItem(StepModel step) {
+  // T1: index-based нумерація (stepIndex + 1) замість step.localNumber
+  Widget _buildStepItem(StepModel step, int stepIndex) {
     final isDone = step.status == ItemStatus.done;
 
     return Padding(
@@ -721,9 +722,9 @@ class _PlanScreenState extends State<PlanScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Номер кроку
+                // T1: index-based нумерація
                 Text(
-                  'Крок ${step.localNumber}',
+                  'Крок ${stepIndex + 1}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[500],
