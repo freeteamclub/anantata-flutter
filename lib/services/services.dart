@@ -7,3 +7,4 @@ export 'gemini_service.dart';
 export 'supabase_service.dart';
 export 'storage_service.dart';
 export 'profile_summary_service.dart';  // T7: Profile Summary
+export 'rag_service.dart';  // Sprint 4: RAG Memory

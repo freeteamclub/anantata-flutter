@@ -9,6 +9,7 @@ import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/analytics_service.dart';
 import 'package:anantata/services/profile_summary_service.dart';  // T7
+import 'package:anantata/services/rag_service.dart';  // Sprint 4
 import 'package:anantata/screens/chat/chat_choices_parser.dart';  // T11
 
 /// Екран чату для допомоги по конкретному кроку
@@ -51,11 +52,14 @@ class _StepChatScreenState extends State<StepChatScreen> {
   final GeminiService _gemini = GeminiService();
   final SupabaseService _supabase = SupabaseService();
   final ProfileSummaryService _profileSummaryService = ProfileSummaryService();  // T7
+  final RAGService _ragService = RAGService();  // Sprint 4
 
   final List<_ChatMessage> _messages = [];
   bool _isTyping = false;
   bool _isLoading = true;
   String? _profileSummary;  // T7: Profile Summary для персоналізації
+  String? _assessmentContext;  // Sprint 4: Assessment контекст
+  String _ragContext = '';  // Sprint 4: RAG контекст
 
   // Analytics: session tracking
   DateTime? _sessionStartTime;
@@ -101,6 +105,35 @@ class _StepChatScreenState extends State<StepChatScreen> {
       debugPrint('📝 Profile summary: ${_profileSummary != null ? "${_profileSummary!.length} символів" : "немає"}');
     } catch (e) {
       debugPrint('⚠️ Помилка завантаження profile_summary: $e');
+    }
+
+    // Sprint 4: Завантажуємо assessment контекст
+    try {
+      final answers = await _supabase.getAssessmentAnswers();
+      if (answers != null && answers.isNotEmpty) {
+        _assessmentContext = answers.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join('\n');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Assessment context: $e');
+    }
+
+    // Sprint 4: RAG контекст по темі кроку
+    try {
+      if (_supabase.isAuthenticated) {
+        final userId = _supabase.client.auth.currentUser?.id;
+        if (userId != null) {
+          final ragResults = await _ragService.search(
+            widget.step.title,
+            userId,
+            limit: 3,
+          );
+          _ragContext = RAGService.formatForPrompt(ragResults);
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ RAG context: $e');
     }
 
     try {
@@ -255,27 +288,47 @@ class _StepChatScreenState extends State<StepChatScreen> {
         ? '\nПРОФІЛЬ КОРИСТУВАЧА:\n$_profileSummary\n'
         : '';
 
+    // Sprint 4: Assessment контекст
+    final assessmentBlock = (_assessmentContext != null && _assessmentContext!.isNotEmpty)
+        ? '\nПОЧАТКОВЕ ОЦІНЮВАННЯ:\n$_assessmentContext\n'
+        : '';
+
+    // Sprint 4: RAG контекст
+    final ragBlock = _ragContext.isNotEmpty ? '\n$_ragContext' : '';
+
     // T5: Назва напрямку
     final directionName = widget.directionTitle ?? '';
     final directionBlock = directionName.isNotEmpty
         ? 'НАПРЯМОК: $directionName'
         : '';
 
+    // Sprint 4: Деталі кроку
+    final step = widget.step;
+    final stepDetails = <String>[];
+    if (step.type != null) stepDetails.add('Тип: ${step.type}');
+    if (step.difficulty != null) stepDetails.add('Складність: ${step.difficulty}');
+    if (step.estimatedTime != null) stepDetails.add('Час: ${step.estimatedTime}');
+    if (step.expectedOutcome != null) stepDetails.add('Очікуваний результат: ${step.expectedOutcome}');
+    final stepDetailsText = stepDetails.isNotEmpty
+        ? stepDetails.join('\n')
+        : '';
+
     return '''
 Ти — Коуч, персональний AI-помічник в додатку 100Steps Career.
 Користувач відкрив конкретний крок свого кар'єрного плану.
-$profileBlock
+$profileBlock$assessmentBlock
 ЦІЛЬ: ${widget.goalTitle}
 ${widget.targetSalary != null ? 'БАЖАНИЙ ДОХІД: ${widget.targetSalary}' : ''}
 $directionBlock
-КРОК ${widget.step.stepNumber}/100: ${widget.step.title}
-ОПИС КРОКУ: ${widget.step.description}
-
+КРОК ${step.stepNumber}/100: ${step.title}
+ОПИС КРОКУ: ${step.description}
+${stepDetailsText.isNotEmpty ? stepDetailsText : ''}
+$ragBlock
 ПРИ ПЕРШОМУ ПОВІДОМЛЕННІ користувача — покажи картку кроку у форматі:
-📋 **${widget.step.title}**
+📋 **${step.title}**
 ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
 
-**Що зробити:** ${widget.step.description}
+**Що зробити:** ${step.description}
 
 **Як я можу допомогти:**
 • Пояснити крок детальніше
@@ -284,7 +337,7 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
 • Перевірити твій результат
 
 ПРАВИЛА:
-- Конкретні поради під цього користувача (використовуй профіль)
+- Конкретні поради під цього користувача (використовуй профіль та оцінювання)
 - Реальні ресурси з посиланнями (курси, статті, інструменти)
 - Давай feedback на результати користувача
 - Коли крок виконаний → запропонуй наступний
@@ -366,6 +419,29 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
         message: text,
         context: _buildSystemContext(),
       );
+
+      // Sprint 4: Індексуємо повідомлення в RAG (fire & forget)
+      if (_supabase.isAuthenticated) {
+        final userId = _supabase.client.auth.currentUser?.id;
+        if (userId != null) {
+          _ragService.addMessage(
+            text: text,
+            userId: userId,
+            role: 'user',
+            source: 'step_chat',
+            goalId: widget.goalId,
+            stepNumber: widget.step.stepNumber,
+          );
+          _ragService.addMessage(
+            text: response,
+            userId: userId,
+            role: 'assistant',
+            source: 'step_chat',
+            goalId: widget.goalId,
+            stepNumber: widget.step.stepNumber,
+          );
+        }
+      }
 
       // Analytics: chat response received
       final responseTimeMs = DateTime.now().difference(requestStartTime).inMilliseconds;

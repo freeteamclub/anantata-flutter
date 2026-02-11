@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:anantata/models/career_plan_model.dart';
 
 /// Сервіс для роботи з Gemini AI
@@ -20,6 +23,9 @@ class GeminiService {
   // Допрацювання #17: Оновлена назва моделі
   static const String _modelName = 'gemini-3-flash-preview';
 
+  // T44: URL проксі для Web-версії
+  static String get _proxyUrl => dotenv.env['GEMINI_PROXY_URL'] ?? 'http://46.62.204.28:3100';
+
   // Singleton
   factory GeminiService() {
     _instance ??= GeminiService._internal();
@@ -31,6 +37,13 @@ class GeminiService {
   }
 
   void _initialize() {
+    // T44: На Web не потрібен API ключ — запити йдуть через проксі
+    if (kIsWeb) {
+      _isInitialized = true;
+      print('✅ GeminiService ініціалізовано (Web → проксі: $_proxyUrl)');
+      return;
+    }
+
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
       print('❌ GEMINI_API_KEY не знайдено в .env');
@@ -65,6 +78,32 @@ class GeminiService {
 
     _isInitialized = true;
     print('✅ GeminiService ініціалізовано (модель: $_modelName)');
+  }
+
+  /// T44: Відправити запит через проксі (тільки для Web)
+  static Future<String> _callViaProxy(String endpoint, String prompt) async {
+    final token = Supabase.instance.client.auth.currentSession?.accessToken;
+    if (token == null) throw Exception('Не авторизовано');
+
+    final response = await http.post(
+      Uri.parse('$_proxyUrl/api/gemini/$endpoint'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'prompt': prompt}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['text'] as String;
+    } else if (response.statusCode == 429) {
+      throw Exception('Забагато запитів. Спробуйте пізніше.');
+    } else if (response.statusCode == 401) {
+      throw Exception('Помилка авторизації');
+    } else {
+      throw Exception('Помилка сервера: ${response.statusCode}');
+    }
   }
 
   /// Генерація кар'єрного плану на основі відповідей
@@ -594,18 +633,26 @@ $formattedAnswers
   }
 
   /// Побудова контексту для AI чату
-  /// T7: Додано підтримку profile_summary для персоналізації
+  /// T7: profile_summary | Sprint 4: assessment, RAG, адаптивні правила
   String buildAIContext({
     required CareerPlanModel plan,
     required List<Map<String, String>> chatHistory,
     String? profileSummary,
     int? streakDays,
+    String? assessmentContext,
+    String? ragContext,
   }) {
+    // Напрямки з описом
     final directions = plan.directions
-        .map((d) => '${d.directionNumber}. ${d.title} (${plan.getDirectionProgress(d.id)}%)')
+        .map((d) {
+          final desc = d.description.length > 60
+              ? '${d.description.substring(0, 60)}...'
+              : d.description;
+          return '${d.directionNumber}. ${d.title} (${plan.getDirectionProgress(d.id)}%) — $desc';
+        })
         .join('\n');
 
-    // Останні 5 виконаних кроків для контексту
+    // Останні 5 виконаних кроків з деталями
     final completedSteps = plan.steps
         .where((s) => s.status == ItemStatus.done)
         .toList();
@@ -614,16 +661,29 @@ $formattedAnswers
         : completedSteps;
     final completedStepsText = last5Completed.isEmpty
         ? 'Ще немає виконаних кроків'
-        : last5Completed.map((s) => '✅ ${s.title}').join('\n');
+        : last5Completed.map((s) {
+            final typeLabel = s.type != null ? ', ${s.type}' : '';
+            final diffLabel = s.difficulty != null ? ', ${s.difficulty}' : '';
+            return '✅ Крок ${s.stepNumber}: ${s.title}$typeLabel$diffLabel';
+          }).join('\n');
 
-    // Наступний рекомендований крок
+    // Наступний крок з деталями
     final nextStep = plan.nextStep;
-    final nextStepText = nextStep != null
-        ? '${nextStep.stepNumber}. ${nextStep.title}'
-        : 'Всі кроки виконано!';
+    String nextStepText;
+    if (nextStep != null) {
+      final parts = <String>['${nextStep.stepNumber}. ${nextStep.title}'];
+      if (nextStep.type != null) parts.add('Тип: ${nextStep.type}');
+      if (nextStep.difficulty != null) parts.add('Складність: ${nextStep.difficulty}');
+      if (nextStep.estimatedTime != null) parts.add('Час: ${nextStep.estimatedTime}');
+      if (nextStep.expectedOutcome != null) parts.add('Результат: ${nextStep.expectedOutcome}');
+      nextStepText = parts.join('\n');
+    } else {
+      nextStepText = 'Всі кроки виконано!';
+    }
 
+    // Історія чату — 20 замість 10
     final history = chatHistory
-        .take(10)
+        .take(20)
         .map((m) => '${m['role']}: ${m['content']}')
         .join('\n');
 
@@ -635,14 +695,27 @@ $profileSummary
 '''
         : '';
 
+    // Sprint 4: Assessment блок
+    final assessmentBlock = (assessmentContext != null && assessmentContext.isNotEmpty)
+        ? '''
+ПОЧАТКОВЕ ОЦІНЮВАННЯ:
+$assessmentContext
+'''
+        : '';
+
+    // Sprint 4: RAG блок
+    final ragBlock = (ragContext != null && ragContext.isNotEmpty)
+        ? '\n$ragContext'
+        : '';
+
     // Streak info
     final streakText = (streakDays != null && streakDays > 0)
-        ? 'СЕРІЯ: $streakDays днів поспіль 🔥'
+        ? 'СЕРІЯ: $streakDays днів поспіль'
         : '';
 
     return '''
 Ти — Коуч, персональний AI-помічник в додатку 100Steps Career.
-$profileBlock
+$profileBlock$assessmentBlock
 ПОТОЧНА ЦІЛЬ: ${plan.goal.title}
 ЦІЛЬОВА ЗАРПЛАТА: ${plan.goal.targetSalary}
 
@@ -659,7 +732,7 @@ $completedStepsText
 
 НАСТУПНИЙ РЕКОМЕНДОВАНИЙ КРОК:
 $nextStepText
-
+$ragBlock
 ІСТОРІЯ ЧАТУ:
 $history
 
@@ -677,6 +750,12 @@ $history
 - Пропонуй варіанти дій
 - Тон: дружній професіонал
 - Мова: українська
+
+АДАПТИВНІ ПРАВИЛА:
+- Якщо користувач виконує 3+ кроки за тиждень → пропонуй складніші завдання, stretch goals
+- Якщо застряг на кроці >3 дні → запропонуй альтернативний підхід або розбий на менші частини
+- Якщо повернувся після паузи >5 днів → м'яке привітання, не тисни, допоможи відновити ритм
+- Якщо серія >7 днів → похвали та запропонуй stretch goal
 
 ФОРМАТ ВИБОРУ (ОБОВ'ЯЗКОВО):
 Коли пропонуєш варіанти дій, оберни їх у спеціальний блок:

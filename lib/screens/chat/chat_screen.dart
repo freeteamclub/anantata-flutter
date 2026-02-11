@@ -8,6 +8,7 @@ import 'package:anantata/services/storage_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/analytics_service.dart';
 import 'package:anantata/services/profile_summary_service.dart';  // T7
+import 'package:anantata/services/rag_service.dart';  // Sprint 4
 import 'package:anantata/screens/chat/chat_choices_parser.dart';  // T11
 
 /// Екран AI чату з кар'єрним коучем
@@ -75,6 +76,8 @@ class ChatScreenState extends State<ChatScreen> {
   // T7: Profile Summary для персоналізації
   String? _profileSummary;
   final ProfileSummaryService _profileSummaryService = ProfileSummaryService();
+  final RAGService _ragService = RAGService();  // Sprint 4
+  String? _assessmentContext;  // Sprint 4
 
   // Analytics: session tracking
   DateTime? _sessionStartTime;
@@ -230,9 +233,23 @@ class ChatScreenState extends State<ChatScreen> {
       debugPrint('⚠️ Помилка завантаження profile_summary: $e');
     }
 
+    // Sprint 4: Assessment контекст
+    String? assessmentCtx;
+    try {
+      final answers = await _supabase.getAssessmentAnswers();
+      if (answers != null && answers.isNotEmpty) {
+        assessmentCtx = answers.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join('\n');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Assessment context: $e');
+    }
+
     setState(() {
       _plan = plan;
       _profileSummary = summary;
+      _assessmentContext = assessmentCtx;
     });
 
     // Визначаємо ключ для завантаження
@@ -501,7 +518,21 @@ class ChatScreenState extends State<ChatScreen> {
       // Баг #3: Окремий try-catch для API запиту
       try {
         if (_plan != null) {
-          // T7: Передаємо profile_summary для персоналізації
+          // Sprint 4: RAG пошук (паралельно, non-blocking)
+          String ragContext = '';
+          try {
+            if (_supabase.isAuthenticated) {
+              final userId = _supabase.client.auth.currentUser?.id;
+              if (userId != null) {
+                final ragResults = await _ragService.search(text, userId, limit: 3);
+                ragContext = RAGService.formatForPrompt(ragResults);
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ RAG search (non-blocking): $e');
+          }
+
+          // T7+Sprint4: Передаємо profile_summary, assessment, RAG
           final context = _gemini.buildAIContext(
             plan: _plan!,
             chatHistory: _messages
@@ -511,12 +542,35 @@ class ChatScreenState extends State<ChatScreen> {
             })
                 .toList(),
             profileSummary: _profileSummary,
+            assessmentContext: _assessmentContext,
+            ragContext: ragContext,
           );
 
           response = await _gemini.sendMessageWithContext(
             message: text,
             context: context,
           );
+
+          // Sprint 4: Індексуємо повідомлення в RAG (fire & forget)
+          if (_supabase.isAuthenticated) {
+            final userId = _supabase.client.auth.currentUser?.id;
+            if (userId != null) {
+              _ragService.addMessage(
+                text: text,
+                userId: userId,
+                role: 'user',
+                source: 'chat',
+                goalId: widget.goalId,
+              );
+              _ragService.addMessage(
+                text: response,
+                userId: userId,
+                role: 'assistant',
+                source: 'chat',
+                goalId: widget.goalId,
+              );
+            }
+          }
         } else {
           // Баг #3: До оцінювання - використовуємо простий chat
           response = await _gemini.chat(text);
