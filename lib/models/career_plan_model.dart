@@ -135,6 +135,10 @@ class GeneratedStep {
   final String title;       // Коротка назва
   final String description; // Короткий опис
   final int directionNumber; // До якого напрямку відноситься (1-10)
+  final String? type;            // quick_win, main_work, stretch_goal
+  final String? difficulty;       // easy, medium, hard
+  final String? estimatedTime;    // "30 хв", "1-2 тижні"
+  final String? expectedOutcome;  // опис результату
 
   GeneratedStep({
     required this.number,
@@ -142,6 +146,10 @@ class GeneratedStep {
     required this.title,
     required this.description,
     required this.directionNumber,
+    this.type,
+    this.difficulty,
+    this.estimatedTime,
+    this.expectedOutcome,
   });
 
   factory GeneratedStep.fromJson(Map<String, dynamic> json) {
@@ -151,6 +159,10 @@ class GeneratedStep {
       title: json['title'] as String,
       description: json['description'] as String? ?? '',
       directionNumber: json['direction_number'] as int,
+      type: json['type'] as String?,
+      difficulty: json['difficulty'] as String?,
+      estimatedTime: json['estimated_time'] as String?,
+      expectedOutcome: json['expected_outcome'] as String?,
     );
   }
 
@@ -161,6 +173,10 @@ class GeneratedStep {
       'title': title,
       'description': description,
       'direction_number': directionNumber,
+      if (type != null) 'type': type,
+      if (difficulty != null) 'difficulty': difficulty,
+      if (estimatedTime != null) 'estimated_time': estimatedTime,
+      if (expectedOutcome != null) 'expected_outcome': expectedOutcome,
     };
   }
 }
@@ -379,6 +395,10 @@ class StepModel {
   final String description;   // Короткий опис
   final String? detailedDescription; // Детальний опис (генерується on-demand)
   final ItemStatus status;
+  final String? type;            // quick_win, main_work, stretch_goal
+  final String? difficulty;       // easy, medium, hard
+  final String? estimatedTime;    // "30 хв", "1-2 тижні"
+  final String? expectedOutcome;  // опис результату
 
   StepModel({
     required this.id,
@@ -391,6 +411,10 @@ class StepModel {
     required this.description,
     this.detailedDescription,
     this.status = ItemStatus.pending,
+    this.type,
+    this.difficulty,
+    this.estimatedTime,
+    this.expectedOutcome,
   });
 
   factory StepModel.fromJson(Map<String, dynamic> json) {
@@ -405,6 +429,10 @@ class StepModel {
       description: json['description'] as String,
       detailedDescription: json['detailed_description'] as String?,
       status: ItemStatusExtension.fromString(json['status'] as String? ?? 'pending'),
+      type: json['type'] as String?,
+      difficulty: json['difficulty'] as String?,
+      estimatedTime: json['estimated_time'] as String?,
+      expectedOutcome: json['expected_outcome'] as String?,
     );
   }
 
@@ -420,6 +448,10 @@ class StepModel {
       'description': description,
       'detailed_description': detailedDescription,
       'status': status.value,
+      if (type != null) 'type': type,
+      if (difficulty != null) 'difficulty': difficulty,
+      if (estimatedTime != null) 'estimated_time': estimatedTime,
+      if (expectedOutcome != null) 'expected_outcome': expectedOutcome,
     };
   }
 
@@ -434,6 +466,10 @@ class StepModel {
     String? description,
     String? detailedDescription,
     ItemStatus? status,
+    String? type,
+    String? difficulty,
+    String? estimatedTime,
+    String? expectedOutcome,
   }) {
     return StepModel(
       id: id ?? this.id,
@@ -446,6 +482,10 @@ class StepModel {
       description: description ?? this.description,
       detailedDescription: detailedDescription ?? this.detailedDescription,
       status: status ?? this.status,
+      type: type ?? this.type,
+      difficulty: difficulty ?? this.difficulty,
+      estimatedTime: estimatedTime ?? this.estimatedTime,
+      expectedOutcome: expectedOutcome ?? this.expectedOutcome,
     );
   }
 

@@ -12,9 +12,9 @@ import 'package:anantata/screens/chat/chat_screen.dart';
 import 'package:anantata/screens/chat/step_chat_screen.dart';
 import 'package:anantata/services/analytics_service.dart';
 
-/// Головний екран додатку v6.3
-/// Версія: 6.3
-/// Дата: 25.01.2026
+/// Головний екран додатку v7.0
+/// Версія: 7.0
+/// Дата: 11.02.2026
 ///
 /// Зміни v6.3:
 /// - Баг #14: Збереження хмарного плану локально при логіні
@@ -47,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _userName = '';
   bool _isLoading = true;
   bool _hasAutoNavigatedToAssessment = false;
-  
+
   int? _expandedDirectionIndex;
 
   @override
@@ -335,6 +335,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // MAIN PLAN UI
+  // ═══════════════════════════════════════════════════════════════
+
   Widget _buildGoalHeader() {
     final goalTitle = _plan?.goal.title ?? 'Моя ціль';
     final targetSalary = _plan?.goal.targetSalary ?? '';
@@ -538,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text('$doneCount/10 кроків', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                            Text('$doneCount/${steps.length} кроків', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                             const SizedBox(width: 8),
                             Text(
                               '• $progress%',
@@ -568,8 +572,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               separatorBuilder: (context, index) => const Divider(height: 1, indent: 60),
               itemBuilder: (context, stepIndex) {
                 final step = steps[stepIndex];
-                // 🆕 v6.2: Обчислюємо глобальний номер кроку на основі позиції
-                // directionIndex (0-9) × 10 + stepIndex (0-9) + 1 = 1-100
                 final globalStepNumber = (directionIndex * 10) + stepIndex + 1;
                 return _buildStepItem(step, globalStepNumber, directionTitle: direction.title);
               },

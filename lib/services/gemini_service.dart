@@ -178,6 +178,10 @@ class GeminiService {
           title: stepMap['title'] as String? ?? 'Крок $stepNumber',
           description: stepMap['description'] as String? ?? '',
           directionNumber: dirNumber,
+          type: stepMap['type'] as String?,
+          difficulty: stepMap['difficulty'] as String?,
+          estimatedTime: stepMap['estimated_time'] as String?,
+          expectedOutcome: stepMap['expected_outcome'] as String?,
         ));
       }
     }
@@ -197,6 +201,10 @@ class GeminiService {
           title: stepMap['title'] as String? ?? 'Крок $stepNumber',
           description: stepMap['description'] as String? ?? '',
           directionNumber: dirNumber,
+          type: stepMap['type'] as String?,
+          difficulty: stepMap['difficulty'] as String?,
+          estimatedTime: stepMap['estimated_time'] as String?,
+          expectedOutcome: stepMap['expected_outcome'] as String?,
         ));
       }
     }
@@ -355,16 +363,31 @@ class GeminiService {
       'Перейти на новий рівень',
     ];
 
+    // Градація складності по номеру кроку
+    String typeForLocal(int local) {
+      if (local <= 4) return 'quick_win';
+      if (local <= 8) return 'main_work';
+      return 'stretch_goal';
+    }
+    String difficultyForLocal(int local) {
+      if (local <= 2) return 'easy';
+      if (local <= 6) return 'medium';
+      return 'hard';
+    }
+
     for (final dir in directions) {
       final baseStepNum = (dir.number - 1) * 10 + 1;
 
       for (int i = 0; i < 10; i++) {
+        final local = i + 1;
         steps.add(GeneratedStep(
           number: baseStepNum + i,
-          localNumber: i + 1,
+          localNumber: local,
           title: '${defaultTasks[i]} у "${dir.title}"',
-          description: 'Крок ${i + 1} для розвитку напрямку "${dir.title}". Виконайте цю задачу для просування до мети.',
+          description: 'Крок $local для розвитку напрямку "${dir.title}". Виконайте цю задачу для просування до мети.',
           directionNumber: dir.number,
+          type: typeForLocal(local),
+          difficulty: difficultyForLocal(local),
         ));
       }
     }
@@ -372,7 +395,7 @@ class GeminiService {
     return steps;
   }
 
-  /// Дефолтні напрямки
+  /// Дефолтні напрямки (9 штук, номери 2-10; напрямок 1 "Знайомство" додається в storage)
   List<GeneratedDirection> _getDefaultDirections() {
     final defaultDirs = [
       'Самоаналіз та цілі',
@@ -382,14 +405,13 @@ class GeminiService {
       'Нетворкінг',
       'Портфоліо',
       'Фінансова грамотність',
-      'Пошук роботи',
-      'Співбесіди',
-      'Адаптація',
+      'Навчання',
+      'AI-інструменти',
     ];
 
-    return List.generate(10, (i) {
+    return List.generate(9, (i) {
       return GeneratedDirection(
-        number: i + 1,
+        number: i + 2,  // 2-10
         title: defaultDirs[i],
         description: 'Напрямок розвитку: ${defaultDirs[i]}',
       );
@@ -412,29 +434,29 @@ $formattedAnswers
 1. Проаналізуй відповіді та визнач поточний стан користувача
 2. Розрахуй match_score (0-100) за формулою:
    - Розрив зарплати (поточна vs бажана): 0-20 балів
-   - Розрив посади (поточна vs бажана): 0-20 балів  
+   - Розрив посади (поточна vs бажана): 0-20 балів
    - Досвід роботи: 0-20 балів
    - Освіта: 0-20 балів
    - Навички та досягнення: 0-20 балів
 3. Створи gap_analysis - короткий текст (2-3 речення) про розрив між поточним станом та метою
-4. Створи 10 напрямків розвитку, кожен з 10 кроками (всього 100 кроків)
+4. Створи 9 напрямків розвитку, кожен з 10 кроками (всього 90 кроків)
+   ВАЖЛИВО: Генеруй саме 9 напрямків (номери 2-10). Напрямок 1 "Знайомство" додається автоматично додатком.
 
-НАПРЯМКИ (приклад):
-1. Самоаналіз та постановка цілей
-2. Розвиток hard skills
-3. Розвиток soft skills
-4. Англійська мова
-5. Нетворкінг та контакти
-6. Портфоліо та особистий бренд
-7. Фінансова грамотність
-8. Пошук роботи
-9. Підготовка до співбесід
-10. Адаптація на новому місці
+НАПРЯМКИ — ОБОВ'ЯЗКОВА СТРУКТУРА:
+- Напрямки 2-8: кар'єрні (адаптуй під профіль користувача, 7 напрямків)
+- Напрямок 9: ОБОВ'ЯЗКОВО "Навчання" (курси, книги, сертифікації)
+- Напрямок 10: ОБОВ'ЯЗКОВО "AI-інструменти" (ChatGPT, Copilot, автоматизація)
+
+ГРАДАЦІЯ СКЛАДНОСТІ КРОКІВ (для КОЖНОГО напрямку):
+- Крок 1: ознайомчий (quick_win, easy, 30 хв) — перше знайомство з темою
+- Кроки 2-4: quick_win (easy/medium, 1-3 дні) — швидкі перемоги
+- Кроки 5-8: main_work (medium/hard, 1-4 тижні) — основна робота
+- Кроки 9-10: stretch_goal (hard, 1-3 місяці) — амбітні цілі
 
 ВИМОГИ ДО КРОКІВ:
-- Кожен крок має бути конкретним і виконуваним за 30 хв - 2 години
+- Назва кроку ПОЧИНАЄТЬСЯ З ДІЄСЛОВА (Створити, Пройти, Написати, Вивчити, тощо)
 - Кроки пронумеровані глобально (1-100) та локально (1-10 в межах напрямку)
-- Кожен крок має title (коротка назва) та description (опис дії)
+- Кожен крок має: title, description, type, difficulty, estimated_time, expected_outcome
 
 ВАЖЛИВО: Відповідь ТІЛЬКИ у форматі JSON. Без markdown, без пояснень, тільки чистий JSON.
 НЕ використовуй символи нового рядка всередині текстових значень - пиши все в один рядок.
@@ -448,15 +470,19 @@ $formattedAnswers
   "gap_analysis": "Короткий аналіз розриву між поточним станом та метою. Все в один рядок без переносів.",
   "directions": [
     {
-      "direction_number": 1,
+      "direction_number": 2,
       "title": "Назва напрямку",
       "description": "Опис напрямку в один рядок",
       "steps": [
         {
-          "step_number": 1,
+          "step_number": 11,
           "local_number": 1,
-          "title": "Назва кроку",
-          "description": "Детальний опис кроку в один рядок без переносів"
+          "title": "Визначити поточний рівень у ...",
+          "description": "Детальний опис кроку в один рядок без переносів",
+          "type": "quick_win",
+          "difficulty": "easy",
+          "estimated_time": "30 хв",
+          "expected_outcome": "Чітке розуміння свого поточного рівня"
         }
       ]
     }
@@ -651,6 +677,15 @@ $history
 - Пропонуй варіанти дій
 - Тон: дружній професіонал
 - Мова: українська
+
+ФОРМАТ ВИБОРУ (ОБОВ'ЯЗКОВО):
+Коли пропонуєш варіанти дій, оберни їх у спеціальний блок:
+[CHOICES]
+Варіант 1
+Варіант 2
+Варіант 3
+[/CHOICES]
+Використовуй це в кінці повідомлення коли є 2-4 варіанти дій для користувача.
 ''';
   }
 

@@ -416,7 +416,21 @@ class StorageService {
       createdAt: DateTime.now(),
     );
 
-    final List<DirectionModel> directions = [];
+    // Напрямок 1: "Знайомство" — завжди додається автоматично
+    final znayomstvoId = _uuid.v4();
+    final List<DirectionModel> directions = [
+      DirectionModel(
+        id: znayomstvoId,
+        goalId: goalId,
+        directionNumber: 1,
+        title: 'Знайомство',
+        description: 'Познайомтесь з додатком та визначте свої пріоритети',
+        status: ItemStatus.pending,
+        blockNumber: 1,
+      ),
+    ];
+
+    // Додаємо інші напрямки (2-10) від Gemini
     for (final genDir in generated.directions) {
       directions.add(DirectionModel(
         id: _uuid.v4(),
@@ -429,7 +443,10 @@ class StorageService {
       ));
     }
 
-    final List<StepModel> steps = [];
+    // Кроки 1-10: "Знайомство" (3 статичні + 7 вступних)
+    final List<StepModel> steps = _createZnayomstvoSteps(goalId, znayomstvoId);
+
+    // Кроки 11-100: від Gemini
     for (final genStep in generated.steps) {
       final direction = directions.firstWhere(
             (d) => d.directionNumber == genStep.directionNumber,
@@ -446,6 +463,10 @@ class StorageService {
         title: genStep.title,
         description: genStep.description,
         status: ItemStatus.pending,
+        type: genStep.type,
+        difficulty: genStep.difficulty,
+        estimatedTime: genStep.estimatedTime,
+        expectedOutcome: genStep.expectedOutcome,
       ));
     }
 
@@ -483,6 +504,51 @@ class StorageService {
     }
 
     return plan;
+  }
+
+  /// Створює 10 кроків для напрямку "Знайомство"
+  List<StepModel> _createZnayomstvoSteps(String goalId, String directionId) {
+    final titles = [
+      'Познайомитись з додатком',
+      'Дізнатись як працює 100Steps',
+      'Познайомитись з AI Коучем',
+      'Визначити свою головну мотивацію',
+      'Оцінити свої сильні сторони',
+      'Записати 3 ключові навички для розвитку',
+      'Переглянути свій план та 10 напрямків',
+      'Обрати пріоритетний напрямок',
+      'Скласти план на перший тиждень',
+      'Виконати перший крок з пріоритетного напрямку',
+    ];
+    final descriptions = [
+      'Ваш план згенеровано! Ласкаво просимо до 100Steps.',
+      'Короткий огляд можливостей додатку та як ефективно працювати з планом.',
+      'Напишіть перше повідомлення вашому AI помічнику — він допоможе з будь-яким кроком.',
+      'Запишіть, чому ви хочете досягти цієї кар\'єрної цілі. Що вас мотивує найбільше?',
+      'Складіть список із 5 своїх найсильніших професійних якостей.',
+      'Визначте 3 навички, які потрібно розвинути для досягнення вашої цілі.',
+      'Перегляньте всі 10 напрямків вашого плану та ознайомтесь з кроками.',
+      'Оберіть напрямок, з якого хочете почати, та запишіть чому саме він.',
+      'Визначте 3-5 конкретних дій на найближчий тиждень з вашого плану.',
+      'Зробіть перший крок з обраного пріоритетного напрямку та позначте його виконаним.',
+    ];
+
+    return List.generate(10, (i) {
+      return StepModel(
+        id: _uuid.v4(),
+        goalId: goalId,
+        directionId: directionId,
+        blockNumber: 1,
+        stepNumber: i + 1,        // 1-10
+        localNumber: i + 1,       // 1-10
+        title: titles[i],
+        description: descriptions[i],
+        status: ItemStatus.pending,
+        type: i < 4 ? 'quick_win' : (i < 8 ? 'main_work' : 'stretch_goal'),
+        difficulty: i < 3 ? 'easy' : (i < 7 ? 'medium' : 'hard'),
+        estimatedTime: i < 3 ? '5 хв' : (i < 7 ? '15-30 хв' : '30-60 хв'),
+      );
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -9,6 +9,7 @@ import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/analytics_service.dart';
 import 'package:anantata/services/profile_summary_service.dart';  // T7
+import 'package:anantata/screens/chat/chat_choices_parser.dart';  // T11
 
 /// Екран чату для допомоги по конкретному кроку
 /// Версія: 1.5.0 - Виправлено URL
@@ -293,6 +294,15 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
 - Відповідай українською
 - Тримай відповіді стислими, але змістовними
 - Використовуй **жирний** для акцентів
+
+ФОРМАТ ВИБОРУ (ОБОВ'ЯЗКОВО):
+Коли пропонуєш варіанти дій, оберни їх у спеціальний блок:
+[CHOICES]
+Варіант 1
+Варіант 2
+Варіант 3
+[/CHOICES]
+Використовуй це в кінці повідомлення коли є 2-4 варіанти дій для користувача.
 ''';
   }
 
@@ -717,6 +727,11 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
   Widget _buildMessageBubble(_ChatMessage message) {
     final isUser = message.isUser;
 
+    // T11: Перевіряємо чи є choices в повідомленні бота
+    if (!isUser && ChatChoicesParser.hasChoices(message.text)) {
+      return _buildMessageWithChoices(message);
+    }
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -742,6 +757,107 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
         child: _buildFormattedText(
           message.text,
           isUser ? Colors.white : AppTheme.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  // T11: Повідомлення з Choice Chips
+  Widget _buildMessageWithChoices(_ChatMessage message) {
+    final parsed = ChatChoicesParser.parse(message.text);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Текст до choices
+        if (parsed.textBefore.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.all(12),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16).copyWith(
+                  bottomLeft: const Radius.circular(4),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: _buildFormattedText(parsed.textBefore, AppTheme.textPrimary),
+            ),
+          ),
+
+        // Choice Chips
+        if (parsed.choices.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: parsed.choices.map((choice) => _buildChoiceChip(choice)).toList(),
+            ),
+          ),
+
+        // Текст після choices
+        if (parsed.textAfter.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.all(12),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: _buildFormattedText(parsed.textAfter, AppTheme.textPrimary),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // T11: Choice Chip
+  Widget _buildChoiceChip(String text) {
+    return Material(
+      color: AppTheme.primaryColor.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => _sendMessage(text),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontFamily: 'Roboto',
+              fontSize: 14,
+              color: AppTheme.primaryColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );
