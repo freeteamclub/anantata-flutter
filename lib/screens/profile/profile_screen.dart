@@ -311,6 +311,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _loadData();
       if (result == 'openPlan' && widget.onNavigateToTab != null) {
         widget.onNavigateToTab!(0);
+      } else if (result is int && widget.onNavigateToTab != null) {
+        // Bug #2: BottomNav у вкладених екранах повертає індекс табу
+        widget.onNavigateToTab!(result);
       }
     });
   }

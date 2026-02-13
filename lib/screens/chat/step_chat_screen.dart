@@ -418,9 +418,7 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
     AnalyticsService().logChatMessageSent(messageLength: text.length, chatType: 'step');
     final requestStartTime = DateTime.now();
 
-    setState(() {
-      _isTyping = true;
-    });
+    if (mounted) setState(() => _isTyping = true);
 
     try {
       final response = await _gemini.sendMessageWithContext(
@@ -459,17 +457,23 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
         chatType: 'step',
       );
 
-      setState(() {
-        _isTyping = false;
-      });
+      // Bug #7: Зберігаємо відповідь навіть якщо екран закритий
+      _messages.add(_ChatMessage(
+        text: response,
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      _saveChatHistory();
 
-      _addBotMessage(response);
+      if (mounted) {
+        setState(() => _isTyping = false);
+        _scrollToBottom();
+      }
     } catch (e) {
-      setState(() {
-        _isTyping = false;
-      });
-
-      _addBotMessage('⚠️ Виникла помилка. Перевір, будь ласка, інтернет-з\'єднання та спробуй ще раз.');
+      if (mounted) {
+        setState(() => _isTyping = false);
+        _addBotMessage('⚠️ Виникла помилка. Перевір, будь ласка, інтернет-з\'єднання та спробуй ще раз.');
+      }
     }
   }
 
