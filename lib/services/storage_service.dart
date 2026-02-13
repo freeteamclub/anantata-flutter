@@ -431,7 +431,9 @@ class StorageService {
     ];
 
     // Додаємо інші напрямки (2-10) від Gemini
+    // Фільтруємо direction 1, якщо Gemini згенерував його попри інструкцію
     for (final genDir in generated.directions) {
+      if (genDir.number < 2) continue; // Напрямок 1 = "Знайомство", додається вище
       directions.add(DirectionModel(
         id: _uuid.v4(),
         goalId: goalId,
@@ -446,8 +448,9 @@ class StorageService {
     // Кроки 1-10: "Знайомство" (3 статичні + 7 вступних)
     final List<StepModel> steps = _createZnayomstvoSteps(goalId, znayomstvoId);
 
-    // Кроки 11-100: від Gemini
+    // Кроки 11-100: від Gemini (пропускаємо кроки для direction 1 — вони вже створені вище)
     for (final genStep in generated.steps) {
+      if (genStep.directionNumber < 2) continue; // Кроки "Знайомства" створюються окремо
       final direction = directions.firstWhere(
             (d) => d.directionNumber == genStep.directionNumber,
         orElse: () => directions.first,
@@ -510,7 +513,7 @@ class StorageService {
   List<StepModel> _createZnayomstvoSteps(String goalId, String directionId) {
     final titles = [
       'Познайомитись з додатком',
-      'Дізнатись як працює 100Steps',
+      'Дізнатись як працює 100StepsCareer',
       'Познайомитись з AI Коучем',
       'Визначити свою головну мотивацію',
       'Оцінити свої сильні сторони',
@@ -521,7 +524,7 @@ class StorageService {
       'Виконати перший крок з пріоритетного напрямку',
     ];
     final descriptions = [
-      'Ваш план згенеровано! Ласкаво просимо до 100Steps.',
+      'Ваш план згенеровано! Ласкаво просимо до 100StepsCareer.',
       'Короткий огляд можливостей додатку та як ефективно працювати з планом.',
       'Напишіть перше повідомлення вашому AI помічнику — він допоможе з будь-яким кроком.',
       'Запишіть, чому ви хочете досягти цієї кар\'єрної цілі. Що вас мотивує найбільше?',

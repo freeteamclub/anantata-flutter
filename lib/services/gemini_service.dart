@@ -116,12 +116,21 @@ class GeminiService {
     final prompt = _buildAssessmentPrompt(answers);
 
     try {
-      print('📤 Відправляємо запит до Gemini ($_modelName)...');
-      final content = [Content.text(prompt)];
-      final response = await _assessmentModel.generateContent(content);
+      String text;
 
-      final text = response.text;
-      if (text == null || text.isEmpty) {
+      if (kIsWeb) {
+        // T44: Web — через проксі
+        print('📤 Відправляємо запит через проксі...');
+        text = await _callViaProxy('generate-plan', prompt);
+      } else {
+        // Mobile — напряму
+        print('📤 Відправляємо запит до Gemini ($_modelName)...');
+        final content = [Content.text(prompt)];
+        final response = await _assessmentModel.generateContent(content);
+        text = response.text ?? '';
+      }
+
+      if (text.isEmpty) {
         print('❌ Порожня відповідь від Gemini');
         return _getFallbackPlan();
       }
@@ -581,11 +590,17 @@ $formattedAnswers
 ''';
 
     try {
-      final content = [Content.text(prompt)];
-      final response = await _assessmentModel.generateContent(content);
+      String text;
 
-      final text = response.text;
-      if (text == null) return _getFallbackPlan();
+      if (kIsWeb) {
+        text = await _callViaProxy('generate-block', prompt);
+      } else {
+        final content = [Content.text(prompt)];
+        final response = await _assessmentModel.generateContent(content);
+        text = response.text ?? '';
+      }
+
+      if (text.isEmpty) return _getFallbackPlan();
 
       return _parseGeneratedPlan(text);
     } catch (e) {
@@ -623,9 +638,13 @@ $formattedAnswers
 ''';
 
     try {
-      final content = [Content.text(prompt)];
-      final response = await _chatModel.generateContent(content);
-      return response.text ?? stepDescription;
+      if (kIsWeb) {
+        return await _callViaProxy('step-details', prompt);
+      } else {
+        final content = [Content.text(prompt)];
+        final response = await _chatModel.generateContent(content);
+        return response.text ?? stepDescription;
+      }
     } catch (e) {
       print('❌ Помилка генерації деталей: $e');
       return stepDescription;
@@ -714,7 +733,7 @@ $assessmentContext
         : '';
 
     return '''
-Ти — Коуч, персональний AI-помічник в додатку 100Steps Career.
+Ти — Коуч, персональний AI-помічник в додатку 100StepsCareer.
 $profileBlock$assessmentBlock
 ПОТОЧНА ЦІЛЬ: ${plan.goal.title}
 ЦІЛЬОВА ЗАРПЛАТА: ${plan.goal.targetSalary}
@@ -787,9 +806,13 @@ $message
 ''';
 
     try {
-      final content = [Content.text(prompt)];
-      final response = await _chatModel.generateContent(content);
-      return response.text ?? 'Не вдалося отримати відповідь.';
+      if (kIsWeb) {
+        return await _callViaProxy('chat', prompt);
+      } else {
+        final content = [Content.text(prompt)];
+        final response = await _chatModel.generateContent(content);
+        return response.text ?? 'Не вдалося отримати відповідь.';
+      }
     } catch (e) {
       print('❌ Помилка чату: $e');
       return 'Виникла помилка. Спробуйте ще раз.';
@@ -803,9 +826,13 @@ $message
     }
 
     try {
-      final content = [Content.text(message)];
-      final response = await _chatModel.generateContent(content);
-      return response.text ?? 'Немає відповіді.';
+      if (kIsWeb) {
+        return await _callViaProxy('chat', message);
+      } else {
+        final content = [Content.text(message)];
+        final response = await _chatModel.generateContent(content);
+        return response.text ?? 'Немає відповіді.';
+      }
     } catch (e) {
       print('❌ Помилка чату: $e');
       return 'Виникла помилка. Спробуйте ще раз.';
@@ -830,9 +857,13 @@ $message
 ''';
 
     try {
-      final content = [Content.text(prompt)];
-      final response = await _chatModel.generateContent(content);
-      return response.text ?? 'Вірте в себе та дійте!';
+      if (kIsWeb) {
+        return await _callViaProxy('advice', prompt);
+      } else {
+        final content = [Content.text(prompt)];
+        final response = await _chatModel.generateContent(content);
+        return response.text ?? 'Вірте в себе та дійте!';
+      }
     } catch (e) {
       return 'Кожен крок наближає вас до мети!';
     }

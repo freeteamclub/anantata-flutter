@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/services/gemini_service.dart';
@@ -314,7 +316,7 @@ class _StepChatScreenState extends State<StepChatScreen> {
         : '';
 
     return '''
-Ти — Коуч, персональний AI-помічник в додатку 100Steps Career.
+Ти — Коуч, персональний AI-помічник в додатку 100StepsCareer.
 Користувач відкрив конкретний крок свого кар'єрного плану.
 $profileBlock$assessmentBlock
 ЦІЛЬ: ${widget.goalTitle}
@@ -340,13 +342,17 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
 - Конкретні поради під цього користувача (використовуй профіль та оцінювання)
 - Реальні ресурси з посиланнями (курси, статті, інструменти)
 - Давай feedback на результати користувача
-- Коли крок виконаний → запропонуй наступний
+- Ти працюєш ТІЛЬКИ з поточним кроком "${step.title}" в напрямку "$directionName"
+- НІКОЛИ не переходь до інших кроків або напрямків
+- Коли крок виконаний → скажи "Чудово! Тепер можеш відмітити цей крок як виконаний і перейти до наступного кроку в додатку"
+- НЕ показуй картку іншого кроку, НЕ описуй інші кроки, НЕ генеруй контент інших напрямків
 - ЗАДАВАЙ ТІЛЬКИ ОДНЕ ПИТАННЯ за раз
 - Спілкуйся на "ти", дружньо, але професійно
 - НЕ вітайся після першого повідомлення (привітання вже було)
 - Відповідай українською
 - Тримай відповіді стислими, але змістовними
 - Використовуй **жирний** для акцентів
+- Назва додатку: 100StepsCareer (не "100Steps")
 
 ФОРМАТ ВИБОРУ (ОБОВ'ЯЗКОВО):
 Коли пропонуєш варіанти дій, оберни їх у спеціальний блок:
@@ -356,6 +362,8 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
 Варіант 3
 [/CHOICES]
 Використовуй це в кінці повідомлення коли є 2-4 варіанти дій для користувача.
+ЗАБОРОНЕНІ варіанти в CHOICES: "Перейти до наступного кроку", "Наступний крок", або будь-що про інші кроки/напрямки.
+Дозволені варіанти: тільки дії в межах ПОТОЧНОГО кроку (наприклад "Покажи приклад", "Дай ресурси", "Перевір мій результат").
 ''';
   }
 
@@ -940,53 +948,119 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
   }
 
   Widget _buildFormattedText(String text, Color baseColor) {
-    final List<InlineSpan> spans = [];
-    final RegExp pattern = RegExp(r'\*\*(.+?)\*\*|\*(.+?)\*|([^*]+)');
-    
-    for (final match in pattern.allMatches(text)) {
-      if (match.group(1) != null) {
-        spans.add(TextSpan(
-          text: match.group(1),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: baseColor,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ));
-      } else if (match.group(2) != null) {
-        spans.add(TextSpan(
-          text: match.group(2),
-          style: TextStyle(
-            fontStyle: FontStyle.italic,
-            color: baseColor,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ));
-      } else if (match.group(3) != null) {
-        spans.add(TextSpan(
-          text: match.group(3),
-          style: TextStyle(
-            color: baseColor,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ));
-      }
-    }
+    final spans = _parseWithLinks(text, baseColor);
 
-    return RichText(
-      text: TextSpan(
+    return SelectableText.rich(
+      TextSpan(
+        children: spans,
         style: TextStyle(
           fontFamily: 'Roboto',
           color: baseColor,
           fontSize: 14,
           height: 1.4,
         ),
-        children: spans,
       ),
     );
+  }
+
+  // Bug #6: Парсинг тексту з підтримкою URL та форматування
+  List<TextSpan> _parseWithLinks(String text, Color baseColor) {
+    final List<TextSpan> result = [];
+    // URL regex
+    final urlRegex = RegExp(r'https?://[^\s\)]+');
+    final lines = text.split('\n');
+
+    for (int i = 0; i < lines.length; i++) {
+      if (i > 0) result.add(const TextSpan(text: '\n'));
+
+      final line = lines[i];
+      // Парсимо inline форматування + URL
+      final spans = _parseLineWithLinks(line, baseColor, urlRegex);
+      result.addAll(spans);
+    }
+
+    return result;
+  }
+
+  List<TextSpan> _parseLineWithLinks(String text, Color baseColor, RegExp urlRegex) {
+    final List<TextSpan> spans = [];
+    int lastEnd = 0;
+
+    for (final match in urlRegex.allMatches(text)) {
+      // Текст до URL — парсимо форматування
+      if (match.start > lastEnd) {
+        spans.addAll(_parseInline(text.substring(lastEnd, match.start), baseColor));
+      }
+
+      // URL — клікабельний
+      final url = match.group(0)!;
+      spans.add(TextSpan(
+        text: url,
+        style: TextStyle(
+          color: Colors.blue[700],
+          decoration: TextDecoration.underline,
+          fontSize: 14,
+          height: 1.4,
+        ),
+        recognizer: TapGestureRecognizer()..onTap = () => _openUrl(url),
+      ));
+
+      lastEnd = match.end;
+    }
+
+    // Залишок тексту
+    if (lastEnd < text.length) {
+      spans.addAll(_parseInline(text.substring(lastEnd), baseColor));
+    }
+
+    if (spans.isEmpty) {
+      spans.add(TextSpan(text: text, style: TextStyle(color: baseColor)));
+    }
+
+    return spans;
+  }
+
+  List<TextSpan> _parseInline(String text, Color baseColor) {
+    final List<TextSpan> spans = [];
+    final regex = RegExp(r'(\*\*(.+?)\*\*)|(\*(.+?)\*)');
+    int lastEnd = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+          style: TextStyle(color: baseColor, fontSize: 14, height: 1.4),
+        ));
+      }
+      if (match.group(2) != null) {
+        spans.add(TextSpan(
+          text: match.group(2),
+          style: TextStyle(fontWeight: FontWeight.w700, color: baseColor, fontSize: 14, height: 1.4),
+        ));
+      } else if (match.group(4) != null) {
+        spans.add(TextSpan(
+          text: match.group(4),
+          style: TextStyle(fontStyle: FontStyle.italic, color: baseColor, fontSize: 14, height: 1.4),
+        ));
+      }
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: TextStyle(color: baseColor, fontSize: 14, height: 1.4),
+      ));
+    }
+
+    return spans;
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _buildTypingIndicator() {
