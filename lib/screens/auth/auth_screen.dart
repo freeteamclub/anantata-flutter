@@ -113,6 +113,15 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               const Spacer(flex: 2),
 
+              // Логотип
+              Image.asset(
+                'assets/images/logo.png',
+                width: 150,
+                height: 150,
+                errorBuilder: (context, error, stackTrace) => const SizedBox(),
+              ),
+              const SizedBox(height: 24),
+
               // Заголовок
               _buildTitle(),
               const SizedBox(height: 16),

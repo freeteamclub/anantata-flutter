@@ -1,9 +1,9 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, FlutterError;
+import 'package:flutter/foundation.dart' show kIsWeb, FlutterError, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:anantata/firebase_options.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/supabase_service.dart';
@@ -37,6 +37,9 @@ void main() async {
     FlutterError.presentError(details);
     debugPrint('🔴 Flutter Error: ${details.exceptionAsString()}');
   };
+
+  // T55: Path-based URL strategy для Web (замість hash /#/)
+  usePathUrlStrategy();
 
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -183,17 +186,27 @@ class FCMService {
   /// Визначити тип пристрою
   String _getDeviceType() {
     if (kIsWeb) return 'web';
-    if (Platform.isAndroid) return 'android';
-    if (Platform.isIOS) return 'ios';
-    return 'unknown';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      default:
+        return 'unknown';
+    }
   }
 
   /// Отримати назву пристрою
   String _getDeviceName() {
     if (kIsWeb) return 'Web Browser';
-    if (Platform.isAndroid) return 'Android Device';
-    if (Platform.isIOS) return 'iOS Device';
-    return 'Unknown Device';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'Android Device';
+      case TargetPlatform.iOS:
+        return 'iOS Device';
+      default:
+        return 'Unknown Device';
+    }
   }
 
   /// Видалити токен при виході

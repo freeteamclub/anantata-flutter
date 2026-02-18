@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
@@ -24,7 +24,7 @@ class GeminiService {
   static const String _modelName = 'gemini-3-flash-preview';
 
   // T44: URL проксі для Web-версії
-  static String get _proxyUrl => dotenv.env['GEMINI_PROXY_URL'] ?? 'http://46.62.204.28:3100';
+  static String get _proxyUrl => dotenv.env['GEMINI_PROXY_URL'] ?? 'https://api.100steps.ai';
 
   // Singleton
   factory GeminiService() {
@@ -40,13 +40,13 @@ class GeminiService {
     // T44: На Web не потрібен API ключ — запити йдуть через проксі
     if (kIsWeb) {
       _isInitialized = true;
-      print('✅ GeminiService ініціалізовано (Web → проксі: $_proxyUrl)');
+      if (kDebugMode) debugPrint('✅ GeminiService ініціалізовано (Web → проксі)');
       return;
     }
 
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      print('❌ GEMINI_API_KEY не знайдено в .env');
+      if (kDebugMode) debugPrint('❌ GEMINI_API_KEY не знайдено в .env');
       return;
     }
 
@@ -77,13 +77,22 @@ class GeminiService {
     );
 
     _isInitialized = true;
-    print('✅ GeminiService ініціалізовано (модель: $_modelName)');
+    if (kDebugMode) debugPrint('✅ GeminiService ініціалізовано (модель: $_modelName)');
   }
 
   /// T44: Відправити запит через проксі (тільки для Web)
   static Future<String> _callViaProxy(String endpoint, String prompt) async {
-    final token = Supabase.instance.client.auth.currentSession?.accessToken;
-    if (token == null) throw Exception('Не авторизовано');
+    var token = Supabase.instance.client.auth.currentSession?.accessToken;
+
+    // Спроба оновити сесію якщо токен протух
+    if (token == null) {
+      try {
+        await Supabase.instance.client.auth.refreshSession();
+        token = Supabase.instance.client.auth.currentSession?.accessToken;
+      } catch (_) {}
+    }
+
+    if (token == null) throw Exception('AUTH_REQUIRED');
 
     final response = await http.post(
       Uri.parse('$_proxyUrl/api/gemini/$endpoint'),
@@ -100,7 +109,7 @@ class GeminiService {
     } else if (response.statusCode == 429) {
       throw Exception('Забагато запитів. Спробуйте пізніше.');
     } else if (response.statusCode == 401) {
-      throw Exception('Помилка авторизації');
+      throw Exception('AUTH_REQUIRED');
     } else {
       throw Exception('Помилка сервера: ${response.statusCode}');
     }
@@ -109,7 +118,7 @@ class GeminiService {
   /// Генерація кар'єрного плану на основі відповідей
   Future<GeneratedPlan> generateCareerPlan(Map<int, String> answers) async {
     if (!_isInitialized) {
-      print('❌ GeminiService не ініціалізовано');
+      if (kDebugMode) debugPrint('❌ GeminiService не ініціалізовано');
       return _getFallbackPlan();
     }
 
@@ -120,25 +129,27 @@ class GeminiService {
 
       if (kIsWeb) {
         // T44: Web — через проксі
-        print('📤 Відправляємо запит через проксі...');
+        if (kDebugMode) debugPrint('📤 Відправляємо запит через проксі...');
         text = await _callViaProxy('generate-plan', prompt);
       } else {
         // Mobile — напряму
-        print('📤 Відправляємо запит до Gemini ($_modelName)...');
+        if (kDebugMode) debugPrint('📤 Відправляємо запит до Gemini...');
         final content = [Content.text(prompt)];
         final response = await _assessmentModel.generateContent(content);
         text = response.text ?? '';
       }
 
       if (text.isEmpty) {
-        print('❌ Порожня відповідь від Gemini');
+        if (kDebugMode) debugPrint('❌ Порожня відповідь від Gemini');
         return _getFallbackPlan();
       }
 
-      print('📥 Отримано відповідь, парсимо JSON...');
+      if (kDebugMode) debugPrint('📥 Отримано відповідь, парсимо JSON...');
       return _parseGeneratedPlan(text);
     } catch (e) {
-      print('❌ Помилка генерації плану: $e');
+      if (kDebugMode) debugPrint('❌ Помилка генерації плану: $e');
+      // Прокидаємо auth помилку нагору для generation_screen
+      if (e.toString().contains('AUTH_REQUIRED')) rethrow;
       return _getFallbackPlan();
     }
   }
@@ -157,8 +168,8 @@ class GeminiService {
       final jsonEnd = cleaned.lastIndexOf('}');
 
       if (jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart) {
-        print('❌ JSON не знайдено у відповіді');
-        print('📄 Текст: ${cleaned.substring(0, cleaned.length.clamp(0, 500))}...');
+        if (kDebugMode) debugPrint('❌ JSON не знайдено у відповіді');
+        if (kDebugMode) debugPrint('📄 Текст: ${cleaned.substring(0, cleaned.length.clamp(0, 500))}...');
         return _getFallbackPlan();
       }
 
@@ -170,20 +181,20 @@ class GeminiService {
       // Крок 4: Парсимо JSON
       final Map<String, dynamic> json = jsonDecode(jsonStr);
 
-      print('✅ JSON успішно розпарсено');
-      print('🎯 Ціль: ${json['goal']?['title']}');
-      print('📊 Match Score: ${json['match_score']}');
+      if (kDebugMode) debugPrint('✅ JSON успішно розпарсено');
+      if (kDebugMode) debugPrint('🎯 Ціль: ${json['goal']?['title']}');
+      if (kDebugMode) debugPrint('📊 Match Score: ${json['match_score']}');
 
       // Конвертуємо в правильний формат
       return _convertToGeneratedPlan(json);
     } catch (e) {
-      print('❌ Помилка парсингу JSON: $e');
+      if (kDebugMode) debugPrint('❌ Помилка парсингу JSON: $e');
 
       // Спробуємо витягти хоча б базову інформацію
       try {
         return _extractBasicInfo(text);
       } catch (e2) {
-        print('❌ Не вдалося витягти базову інформацію: $e2');
+        if (kDebugMode) debugPrint('❌ Не вдалося витягти базову інформацію: $e2');
         return _getFallbackPlan();
       }
     }
@@ -321,14 +332,14 @@ class GeminiService {
 
   /// Спроба витягти базову інформацію з тексту якщо JSON не парситься
   GeneratedPlan _extractBasicInfo(String text) {
-    print('🔍 Спроба витягти базову інформацію...');
+    if (kDebugMode) debugPrint('🔍 Спроба витягти базову інформацію...');
 
     // Шукаємо match_score
     int matchScore = 50;
     final scoreMatch = RegExp(r'"match_score"\s*:\s*(\d+)').firstMatch(text);
     if (scoreMatch != null) {
       matchScore = int.tryParse(scoreMatch.group(1) ?? '50') ?? 50;
-      print('📊 Знайдено match_score: $matchScore');
+      if (kDebugMode) debugPrint('📊 Знайдено match_score: $matchScore');
     }
 
     // Шукаємо goal title
@@ -336,7 +347,7 @@ class GeminiService {
     final goalMatch = RegExp(r'"goal"\s*:\s*\{\s*"title"\s*:\s*"([^"]+)"').firstMatch(text);
     if (goalMatch != null) {
       goalTitle = goalMatch.group(1) ?? goalTitle;
-      print('🎯 Знайдено goal: $goalTitle');
+      if (kDebugMode) debugPrint('🎯 Знайдено goal: $goalTitle');
     }
 
     // Шукаємо target_salary
@@ -355,7 +366,7 @@ class GeminiService {
       if (!gapAnalysis.endsWith('.')) {
         gapAnalysis += '...';
       }
-      print('📝 Знайдено gap_analysis');
+      if (kDebugMode) debugPrint('📝 Знайдено gap_analysis');
     }
 
     // Шукаємо directions
@@ -375,7 +386,7 @@ class GeminiService {
         ));
       }
     }
-    print('📂 Знайдено ${directions.length} напрямків');
+    if (kDebugMode) debugPrint('📂 Знайдено ${directions.length} напрямків');
 
     // Якщо напрямки не знайдені, створюємо дефолтні
     if (directions.isEmpty) {
@@ -604,7 +615,7 @@ $formattedAnswers
 
       return _parseGeneratedPlan(text);
     } catch (e) {
-      print('❌ Помилка генерації наступного блоку: $e');
+      if (kDebugMode) debugPrint('❌ Помилка генерації наступного блоку: $e');
       return _getFallbackPlan();
     }
   }
@@ -646,7 +657,7 @@ $formattedAnswers
         return response.text ?? stepDescription;
       }
     } catch (e) {
-      print('❌ Помилка генерації деталей: $e');
+      if (kDebugMode) debugPrint('❌ Помилка генерації деталей: $e');
       return stepDescription;
     }
   }
@@ -814,7 +825,10 @@ $message
         return response.text ?? 'Не вдалося отримати відповідь.';
       }
     } catch (e) {
-      print('❌ Помилка чату: $e');
+      if (kDebugMode) debugPrint('❌ Помилка чату: $e');
+      if (e.toString().contains('AUTH_REQUIRED')) {
+        return 'Сесія закінчилась. Будь ласка, увійдіть знову через Google.';
+      }
       return 'Виникла помилка. Спробуйте ще раз.';
     }
   }
@@ -834,7 +848,10 @@ $message
         return response.text ?? 'Немає відповіді.';
       }
     } catch (e) {
-      print('❌ Помилка чату: $e');
+      if (kDebugMode) debugPrint('❌ Помилка чату: $e');
+      if (e.toString().contains('AUTH_REQUIRED')) {
+        return 'Сесія закінчилась. Будь ласка, увійдіть знову через Google.';
+      }
       return 'Виникла помилка. Спробуйте ще раз.';
     }
   }

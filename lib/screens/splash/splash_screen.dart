@@ -78,6 +78,14 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Логотип
+              Image.asset(
+                'assets/images/logo.png',
+                width: 120,
+                height: 120,
+                errorBuilder: (context, error, stackTrace) => const SizedBox(),
+              ),
+              const SizedBox(height: 24),
               // Назва
               const Text(
                 '100StepsCareer',

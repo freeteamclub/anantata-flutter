@@ -139,7 +139,7 @@
 
 | Тікет | Опис | Тип | Год | Залежності | Статус |
 |-------|------|-----|-----|------------|--------|
-| T46 | Збірка Web (`flutter build web --release`) + деплой на Hostinger + домен career.100steps.ai | DevOps | 1 | T43, T44, T45 | |
+| T46 | Збірка Web (`flutter build web --release`) + деплой на Hostinger + домен career.100steps.ai | DevOps | 1 | T43, T44, T45 | **DONE** |
 | T47 | Локальне тестування Web — auth, assessment, генерація, чат, профіль, goals | QA | 2 | T46 | |
 
 #### Фаза W4 — Покращення безпеки (P2)
@@ -148,9 +148,9 @@
 |-------|------|-----|-----|------------|--------|
 | T48 | Firebase API Key Restrictions — обмежити по доменах та API | Ручна | 0.3 | — | |
 | T49 | FCM Service Worker — `firebase-messaging-sw.js` для Web Push | Код | 1 | — | |
-| T50 | Content Security Policy — мета-тег CSP в `index.html` | Код | 0.5 | — | |
+| T50 | Content Security Policy — мета-тег CSP в `index.html` | Код | 0.5 | — | **DONE** |
 | T51 | HTTPS + Security Headers — X-Frame-Options, HSTS, X-XSS-Protection | DevOps | 0.5 | T46 | |
-| T52 | SSL для проксі — nginx reverse proxy + certbot для api.100steps.ai | Сервер | 0.5 | T39 | |
+| T52 | SSL для проксі — nginx reverse proxy + certbot для api.100steps.ai | Сервер | 0.5 | T39 | **DONE** |
 
 #### Фаза W5 — Адаптація UI + Тестування (P2)
 

@@ -1,0 +1,11 @@
+# SPA routing for Flutter Web (path-based URL strategy)
+# All routes redirect to index.html, except existing files/directories
+
+RewriteEngine On
+
+# If the requested file exists, serve it directly
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Otherwise redirect to index.html
+RewriteRule ^(.*)$ /index.html [L,QSA]
