@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -406,6 +406,14 @@ ${directionName.isNotEmpty ? '📂 Напрямок: $directionName' : ''}
   Future<void> _sendMessage([String? quickAction]) async {
     final text = quickAction ?? _messageController.text.trim();
     if (text.isEmpty) return;
+
+    // Web: перевірка авторизації перед відправкою
+    if (kIsWeb && !_supabase.isAuthenticated) {
+      if (quickAction == null) _messageController.clear();
+      _addUserMessage(text);
+      _addBotMessage('Для роботи з AI-коучем потрібно увійти через Google. Перезавантажте сторінку та увійдіть у свій акаунт.');
+      return;
+    }
 
     if (quickAction == null) {
       _messageController.clear();

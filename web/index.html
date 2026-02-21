@@ -49,10 +49,101 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://career.100steps.ai/">
+
   <title>100StepsCareer</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Smart App Banner for Android mobile users -->
+  <style>
+    #app-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 99999;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      padding: 10px 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      align-items: center;
+      gap: 10px;
+    }
+    #app-banner .banner-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #888;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    #app-banner .banner-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    #app-banner .banner-info {
+      flex: 1;
+      min-width: 0;
+    }
+    #app-banner .banner-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    #app-banner .banner-subtitle {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+    #app-banner .banner-btn {
+      background: #6C5CE7;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+  </style>
+
+  <div id="app-banner">
+    <button class="banner-close" onclick="closeBanner()">&times;</button>
+    <img class="banner-icon" src="icons/Icon-192.png" alt="100StepsCareer">
+    <div class="banner-info">
+      <div class="banner-title">100StepsCareer</div>
+      <div class="banner-subtitle">Зручніше в додатку</div>
+    </div>
+    <a class="banner-btn" href="https://play.google.com/store/apps/details?id=ai.anantata.careercoach" target="_blank" rel="noopener">Встановити</a>
+  </div>
+
+  <script>
+    function closeBanner() {
+      document.getElementById('app-banner').style.display = 'none';
+      localStorage.setItem('app_banner_closed', Date.now().toString());
+    }
+    (function() {
+      var ua = navigator.userAgent || '';
+      var isAndroid = /Android/i.test(ua);
+      var isMobile = /Mobile|Android/i.test(ua);
+      if (!isAndroid || !isMobile) return;
+      var closed = localStorage.getItem('app_banner_closed');
+      if (closed) {
+        var days = (Date.now() - parseInt(closed)) / (1000 * 60 * 60 * 24);
+        if (days < 3) return;
+      }
+      document.getElementById('app-banner').style.display = 'flex';
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

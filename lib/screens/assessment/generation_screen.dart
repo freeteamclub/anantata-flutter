@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/services/gemini_service.dart';
 import 'package:anantata/services/storage_service.dart';
+import 'package:anantata/services/supabase_service.dart';
 import 'package:anantata/services/profile_summary_service.dart';  // T7
 import 'package:anantata/models/career_plan_model.dart';
 import 'package:anantata/screens/goal/goals_list_screen.dart';
@@ -123,6 +125,15 @@ class _GenerationScreenState extends State<GenerationScreen>
   }
 
   Future<void> _startGeneration() async {
+    // Web: перевірка авторизації перед генерацією
+    if (kIsWeb && !SupabaseService().isAuthenticated) {
+      setState(() {
+        _state = GenerationState.error;
+        _errorMessage = 'Для генерації плану потрібно увійти через Google. Поверніться назад та авторизуйтесь.';
+      });
+      return;
+    }
+
     try {
       // Етап 1: Аналіз (0-30%)
       await _updateState(
@@ -215,11 +226,22 @@ class _GenerationScreenState extends State<GenerationScreen>
       _pulseController.stop();
 
     } catch (e) {
-      print('❌ Помилка генерації: $e');
+      debugPrint('❌ Помилка генерації: $e');
       _stopProgressSimulation(); // Баг #12a: Зупиняємо timer при помилці
+      String userMessage;
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('failed to fetch') || errorStr.contains('ssl') || errorStr.contains('network')) {
+        userMessage = 'Немає з\'єднання з сервером. Перевірте інтернет і спробуйте ще раз.';
+      } else if (errorStr.contains('429') || errorStr.contains('rate') || errorStr.contains('забагато')) {
+        userMessage = 'Забагато запитів. Зачекайте кілька хвилин і спробуйте знову.';
+      } else if (errorStr.contains('401') || errorStr.contains('авторизац') || errorStr.contains('auth_required')) {
+        userMessage = 'Сесія закінчилась. Перезавантажте сторінку та увійдіть знову.';
+      } else {
+        userMessage = 'Не вдалося згенерувати план. Спробуйте ще раз.';
+      }
       setState(() {
         _state = GenerationState.error;
-        _errorMessage = 'Не вдалося згенерувати план. Спробуйте ще раз.';
+        _errorMessage = userMessage;
       });
       _pulseController.stop();
     }

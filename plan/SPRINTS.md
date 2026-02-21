@@ -148,17 +148,17 @@
 |-------|------|-----|-----|------------|--------|
 | T48 | Firebase API Key Restrictions — обмежити по доменах та API | Ручна | 0.3 | — | |
 | T49 | FCM Service Worker — `firebase-messaging-sw.js` для Web Push | Код | 1 | — | |
-| T50 | Content Security Policy — мета-тег CSP в `index.html` | Код | 0.5 | — | **DONE** |
-| T51 | HTTPS + Security Headers — X-Frame-Options, HSTS, X-XSS-Protection | DevOps | 0.5 | T46 | |
+| T50 | Content Security Policy — мета-тег CSP в `index.html` | Код | 0.5 | — | **DONE** (тимчасово вимкнено — Flutter Web потребує blob: + fonts.gstatic.com) |
+| T51 | HTTPS + Security Headers — X-Frame-Options, HSTS, X-XSS-Protection | DevOps | 0.5 | T46 | **DONE** (nginx: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, HSTS) |
 | T52 | SSL для проксі — nginx reverse proxy + certbot для api.100steps.ai | Сервер | 0.5 | T39 | **DONE** |
 
 #### Фаза W5 — Адаптація UI + Тестування (P2)
 
 | Тікет | Опис | Тип | Год | Залежності | Статус |
 |-------|------|-----|-----|------------|--------|
-| T53 | Перевірити всі `dart:io` в проекті — grep + замінити всі Platform.* | Код | 0.5 | T43 | |
-| T54 | Responsive layout — перевірити/адаптувати WebWrapper (500px→600-700px?) | Код | 2 | — | |
-| T55 | URL Strategy SPA — .htaccess або nginx для path-based URL | DevOps | 0.5 | T46 | |
+| T53 | Перевірити всі `dart:io` в проекті — grep + замінити всі Platform.* | Код | 0.5 | T43 | **DONE** (чисто, dart:io не знайдено) |
+| T54 | Responsive layout — перевірити/адаптувати WebWrapper (500px→600-700px?) | Код | 2 | — | **DONE** (maxWidth 500→600) |
+| T55 | URL Strategy SPA — .htaccess або nginx для path-based URL | DevOps | 0.5 | T46 | **DONE** (usePathUrlStrategy + .htaccess) |
 | T56 | Повне тестування — Desktop браузери + різні розміри + функціональне | QA | 2 | T46-T55 | |
 
 #### Фаза W6 — Після запуску (P3)
@@ -167,7 +167,7 @@
 |-------|------|-----|-----|------------|--------|
 | T57 | Моніторинг — бюджет Gemini API $10/міс, логи проксі, Supabase usage | Ручна | 0.5 | T39 | |
 | T58 | Оптимізація бандла — canvaskit vs html renderer, gzip, caching headers | DevOps | 1 | T46 | |
-| T59 | SEO мета-теги — lang="uk", canonical, robots.txt, sitemap.xml | Код | 0.5 | T46 | |
+| T59 | SEO мета-теги — lang="uk", canonical, robots.txt, sitemap.xml | Код | 0.5 | T46 | **DONE** (robots.txt, sitemap.xml, canonical link) |
 
 ---
 

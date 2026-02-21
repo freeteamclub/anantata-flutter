@@ -79,8 +79,10 @@ class SupabaseService {
     await Supabase.initialize(
       url: url,
       anonKey: anonKey,
-      authOptions: const FlutterAuthClientOptions(
-        authFlowType: AuthFlowType.pkce,
+      authOptions: FlutterAuthClientOptions(
+        // Web: implicit flow (токени одразу в URL fragment)
+        // Mobile: PKCE flow (безпечніший обмін кодів)
+        authFlowType: kIsWeb ? AuthFlowType.implicit : AuthFlowType.pkce,
       ),
     );
 

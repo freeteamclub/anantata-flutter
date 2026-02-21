@@ -541,7 +541,7 @@ class WebWrapper extends StatelessWidget {
   const WebWrapper({
     super.key,
     required this.child,
-    this.maxWidth = 500,
+    this.maxWidth = 600,
     this.backgroundColor = const Color(0xFFE8E5ED), // Світло-фіолетовий
   });
 

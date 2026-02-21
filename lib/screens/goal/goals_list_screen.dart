@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:anantata/utils/stub_io.dart' if (dart.library.io) 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -172,17 +173,21 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       // Генеруємо MD контент
       final mdContent = _generateMarkdown(plan);
 
-      // Зберігаємо файл
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = '100steps_plan_${DateTime.now().millisecondsSinceEpoch}.md';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(mdContent);
+      if (kIsWeb) {
+        // Web: Share як текст
+        await Share.share(mdContent, subject: 'Мій план 100StepsCareer');
+      } else {
+        // Mobile: зберігаємо файл і ділимося
+        final directory = await getApplicationDocumentsDirectory();
+        final fileName = '100steps_plan_${DateTime.now().millisecondsSinceEpoch}.md';
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsString(mdContent);
 
-      // Ділимося файлом
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Мій план 100StepsCareer',
-      );
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Мій план 100StepsCareer',
+        );
+      }
 
     } catch (e) {
       if (mounted) {

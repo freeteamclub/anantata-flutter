@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
 import 'package:flutter/services.dart';
 import 'package:anantata/config/app_theme.dart';
 import 'package:anantata/models/career_plan_model.dart';
@@ -488,6 +488,14 @@ class ChatScreenState extends State<ChatScreen> {
     final text = quickAction ?? _messageController.text.trim();
     if (text.isEmpty) return;
 
+    // Web: перевірка авторизації перед відправкою
+    if (kIsWeb && !_supabase.isAuthenticated) {
+      if (quickAction == null) _messageController.clear();
+      _addUserMessage(text);
+      _addBotMessage('Для роботи з AI-коучем потрібно увійти через Google. Перезавантажте сторінку та увійдіть у свій акаунт.');
+      return;
+    }
+
     if (quickAction == null) {
       _messageController.clear();
     }
@@ -645,9 +653,21 @@ class ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Embedded режим (вкладено в HomeScreen) — без Scaffold, щоб не дублювати AppBar
+    if (widget.embedded) {
+      return Column(
+        children: [
+          Expanded(child: _buildMessagesList()),
+          if (_isTyping) _buildTypingIndicator(),
+          _buildQuickActions(),
+          _buildInputArea(),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: widget.embedded ? null : _buildAppBar(), // 🆕 Не показувати AppBar якщо embedded
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           Expanded(

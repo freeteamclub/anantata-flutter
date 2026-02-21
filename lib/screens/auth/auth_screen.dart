@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -137,9 +138,12 @@ class _AuthScreenState extends State<AuthScreen> {
               _buildGoogleButton(),
               const SizedBox(height: 16),
 
-              // Кнопка пропустити
-              _buildSkipButton(),
-              const SizedBox(height: 24),
+              // Кнопка пропустити (тільки mobile — на Web AI працює через проксі з авторизацією)
+              if (!kIsWeb) ...[
+                _buildSkipButton(),
+                const SizedBox(height: 24),
+              ] else
+                const SizedBox(height: 24),
 
               // Політика конфіденційності (клікабельна)
               _buildPrivacyNote(),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/configuration.dart';
@@ -28,10 +29,19 @@ class AnalyticsService {
     _amplitudeInitialized = true;
   }
 
+  /// Безпечний виклик Firebase — не крешить додаток при помилках
+  Future<void> _safeFirebase(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Analytics error: $e');
+    }
+  }
+
   // ==================== User Properties ====================
 
   Future<void> setUserId(String? userId) async {
-    await _firebase.setUserId(id: userId);
+    await _safeFirebase(() => _firebase.setUserId(id: userId));
     if (_amplitudeInitialized) {
       if (userId != null) {
         _amplitude.setUserId(userId);
@@ -42,37 +52,37 @@ class AnalyticsService {
   }
 
   Future<void> setUserProperty(String name, String? value) async {
-    await _firebase.setUserProperty(name: name, value: value);
+    await _safeFirebase(() => _firebase.setUserProperty(name: name, value: value));
   }
 
   // ==================== Screen Tracking ====================
 
   Future<void> logScreenView(String screenName) async {
-    await _firebase.logScreenView(screenName: screenName);
+    await _safeFirebase(() => _firebase.logScreenView(screenName: screenName));
     _trackAmplitude('screen_view', {'screen_name': screenName});
   }
 
   // ==================== Auth Events ====================
 
   Future<void> logLogin(String method) async {
-    await _firebase.logLogin(loginMethod: method);
+    await _safeFirebase(() => _firebase.logLogin(loginMethod: method));
     _trackAmplitude('login', {'method': method});
   }
 
   Future<void> logSignUp(String method) async {
-    await _firebase.logSignUp(signUpMethod: method);
+    await _safeFirebase(() => _firebase.logSignUp(signUpMethod: method));
     _trackAmplitude('sign_up', {'method': method});
   }
 
   Future<void> logLogout() async {
-    await _firebase.logEvent(name: 'logout');
+    await _safeFirebase(() => _firebase.logEvent(name: 'logout'));
     _trackAmplitude('logout', {});
   }
 
   // ==================== Assessment Events ====================
 
   Future<void> logAssessmentStarted() async {
-    await _firebase.logEvent(name: 'assessment_started');
+    await _safeFirebase(() => _firebase.logEvent(name: 'assessment_started'));
     _trackAmplitude('assessment_started', {});
   }
 
@@ -85,7 +95,7 @@ class AnalyticsService {
       'total_questions': totalQuestions,
       'progress_percent': ((questionNumber / totalQuestions) * 100).round(),
     };
-    await _firebase.logEvent(name: 'assessment_question_answered', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'assessment_question_answered', parameters: params));
     _trackAmplitude('assessment_question_answered', params);
   }
 
@@ -97,7 +107,7 @@ class AnalyticsService {
       'questions_answered': questionsAnswered,
       'duration_seconds': durationSeconds,
     };
-    await _firebase.logEvent(name: 'assessment_completed', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'assessment_completed', parameters: params));
     _trackAmplitude('assessment_completed', params);
   }
 
@@ -105,7 +115,7 @@ class AnalyticsService {
     required int questionsAnswered,
   }) async {
     final params = {'questions_answered': questionsAnswered};
-    await _firebase.logEvent(name: 'assessment_abandoned', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'assessment_abandoned', parameters: params));
     _trackAmplitude('assessment_abandoned', params);
   }
 
@@ -119,13 +129,13 @@ class AnalyticsService {
       'goal_id': goalId,
       'goal_title': goalTitle.length > 100 ? goalTitle.substring(0, 100) : goalTitle,
     };
-    await _firebase.logEvent(name: 'goal_created', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'goal_created', parameters: params));
     _trackAmplitude('goal_created', params);
   }
 
   Future<void> logGoalDeleted({required String goalId}) async {
     final params = {'goal_id': goalId};
-    await _firebase.logEvent(name: 'goal_deleted', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'goal_deleted', parameters: params));
     _trackAmplitude('goal_deleted', params);
   }
 
@@ -141,7 +151,7 @@ class AnalyticsService {
       'step_number': stepNumber,
       'phase_number': phaseNumber,
     };
-    await _firebase.logEvent(name: 'step_completed', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'step_completed', parameters: params));
     _trackAmplitude('step_completed', params);
   }
 
@@ -155,7 +165,7 @@ class AnalyticsService {
       'step_number': stepNumber,
       'phase_number': phaseNumber,
     };
-    await _firebase.logEvent(name: 'step_skipped', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'step_skipped', parameters: params));
     _trackAmplitude('step_skipped', params);
   }
 
@@ -167,7 +177,7 @@ class AnalyticsService {
       'step_id': stepId,
       'step_number': stepNumber,
     };
-    await _firebase.logEvent(name: 'step_reset', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'step_reset', parameters: params));
     _trackAmplitude('step_reset', params);
   }
 
@@ -181,7 +191,7 @@ class AnalyticsService {
       'chat_type': chatType,
       if (stepId != null) 'step_id': stepId,
     };
-    await _firebase.logEvent(name: 'chat_session_started', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'chat_session_started', parameters: params));
     _trackAmplitude('chat_session_started', params);
   }
 
@@ -195,7 +205,7 @@ class AnalyticsService {
       'messages_count': messagesCount,
       'duration_seconds': durationSeconds,
     };
-    await _firebase.logEvent(name: 'chat_session_ended', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'chat_session_ended', parameters: params));
     _trackAmplitude('chat_session_ended', params);
   }
 
@@ -207,7 +217,7 @@ class AnalyticsService {
       'message_length': messageLength,
       'chat_type': chatType,
     };
-    await _firebase.logEvent(name: 'chat_message_sent', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'chat_message_sent', parameters: params));
     _trackAmplitude('chat_message_sent', params);
   }
 
@@ -221,24 +231,24 @@ class AnalyticsService {
       'response_time_ms': responseTimeMs,
       'chat_type': chatType,
     };
-    await _firebase.logEvent(name: 'chat_response_received', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'chat_response_received', parameters: params));
     _trackAmplitude('chat_response_received', params);
   }
 
   // ==================== Telegram Events ====================
 
   Future<void> logTelegramLinkStarted() async {
-    await _firebase.logEvent(name: 'telegram_link_started');
+    await _safeFirebase(() => _firebase.logEvent(name: 'telegram_link_started'));
     _trackAmplitude('telegram_link_started', {});
   }
 
   Future<void> logTelegramLinked() async {
-    await _firebase.logEvent(name: 'telegram_linked');
+    await _safeFirebase(() => _firebase.logEvent(name: 'telegram_linked'));
     _trackAmplitude('telegram_linked', {});
   }
 
   Future<void> logTelegramUnlinked() async {
-    await _firebase.logEvent(name: 'telegram_unlinked');
+    await _safeFirebase(() => _firebase.logEvent(name: 'telegram_unlinked'));
     _trackAmplitude('telegram_unlinked', {});
   }
 
@@ -254,7 +264,7 @@ class AnalyticsService {
       'frequency': frequency,
       'time': time,
     };
-    await _firebase.logEvent(name: 'notification_settings_changed', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'notification_settings_changed', parameters: params));
     _trackAmplitude('notification_settings_changed', params);
   }
 
@@ -264,7 +274,7 @@ class AnalyticsService {
     required String contentType,
     required String itemId,
   }) async {
-    await _firebase.logShare(contentType: contentType, itemId: itemId, method: 'app');
+    await _safeFirebase(() => _firebase.logShare(contentType: contentType, itemId: itemId, method: 'app'));
     _trackAmplitude('share', {'content_type': contentType, 'item_id': itemId});
   }
 
@@ -274,7 +284,7 @@ class AnalyticsService {
     required String resolution,
   }) async {
     final params = {'resolution': resolution};
-    await _firebase.logEvent(name: 'sync_conflict', parameters: params);
+    await _safeFirebase(() => _firebase.logEvent(name: 'sync_conflict', parameters: params));
     _trackAmplitude('sync_conflict', params);
   }
 
@@ -284,7 +294,7 @@ class AnalyticsService {
     String name, {
     Map<String, Object>? parameters,
   }) async {
-    await _firebase.logEvent(name: name, parameters: parameters);
+    await _safeFirebase(() => _firebase.logEvent(name: name, parameters: parameters));
     _trackAmplitude(name, parameters ?? {});
   }
 
